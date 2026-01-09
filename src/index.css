@@ -48,10 +48,20 @@
     /* Mood colors */
     --mood-happy: 45 95% 55%;
     --mood-sad: 250 60% 55%;
-    --mood-stressed: 0 70% 55%;
+    --mood-stressed: 200 70% 55%;
     --mood-romantic: 340 75% 60%;
     --mood-excited: 25 95% 55%;
-    --mood-relaxed: 200 70% 55%;
+    --mood-relaxed: 180 60% 50%;
+    --mood-lonely: 220 50% 50%;
+    --mood-anxious: 190 60% 50%;
+    --mood-burnedout: 30 30% 50%;
+    --mood-overwhelmed: 270 50% 55%;
+    --mood-nostalgic: 35 60% 55%;
+    --mood-heartbroken: 350 50% 45%;
+    --mood-motivated: 150 70% 45%;
+    --mood-bored: 220 30% 55%;
+    --mood-hopeful: 170 70% 50%;
+    --mood-curious: 280 65% 55%;
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(263 70% 58%) 0%, hsl(290 70% 50%) 100%);
@@ -80,6 +90,14 @@
     @apply border-border;
   }
 
+  html {
+    transition: background-color 0.5s ease, color 0.5s ease;
+  }
+
+  html.theme-transitioning * {
+    transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease !important;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Plus Jakarta Sans', sans-serif;
@@ -103,6 +121,15 @@
   ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground));
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer components {
@@ -124,28 +151,73 @@
     box-shadow: var(--shadow-glow);
   }
 
+  /* Mood gradient backgrounds */
+  .mood-gradient-default {
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.15) 0%, transparent 100%);
+  }
+
   .mood-gradient-happy {
-    background: linear-gradient(135deg, hsl(var(--mood-happy) / 0.2) 0%, transparent 100%);
+    background: linear-gradient(135deg, hsl(var(--mood-happy) / 0.2) 0%, hsl(32 95% 60% / 0.1) 100%);
   }
 
   .mood-gradient-sad {
-    background: linear-gradient(135deg, hsl(var(--mood-sad) / 0.2) 0%, transparent 100%);
+    background: linear-gradient(135deg, hsl(var(--mood-sad) / 0.2) 0%, hsl(220 40% 50% / 0.1) 100%);
   }
 
   .mood-gradient-stressed {
-    background: linear-gradient(135deg, hsl(var(--mood-stressed) / 0.2) 0%, transparent 100%);
+    background: linear-gradient(135deg, hsl(var(--mood-stressed) / 0.2) 0%, hsl(210 50% 60% / 0.1) 100%);
   }
 
   .mood-gradient-romantic {
-    background: linear-gradient(135deg, hsl(var(--mood-romantic) / 0.2) 0%, transparent 100%);
+    background: linear-gradient(135deg, hsl(var(--mood-romantic) / 0.2) 0%, hsl(350 80% 65% / 0.1) 100%);
   }
 
   .mood-gradient-excited {
-    background: linear-gradient(135deg, hsl(var(--mood-excited) / 0.2) 0%, transparent 100%);
+    background: linear-gradient(135deg, hsl(var(--mood-excited) / 0.2) 0%, hsl(15 95% 60% / 0.1) 100%);
   }
 
   .mood-gradient-relaxed {
-    background: linear-gradient(135deg, hsl(var(--mood-relaxed) / 0.2) 0%, transparent 100%);
+    background: linear-gradient(135deg, hsl(var(--mood-relaxed) / 0.2) 0%, hsl(200 70% 55% / 0.1) 100%);
+  }
+
+  .mood-gradient-lonely {
+    background: linear-gradient(135deg, hsl(var(--mood-lonely) / 0.2) 0%, hsl(230 40% 55% / 0.1) 100%);
+  }
+
+  .mood-gradient-anxious {
+    background: linear-gradient(135deg, hsl(var(--mood-anxious) / 0.2) 0%, hsl(200 50% 55% / 0.1) 100%);
+  }
+
+  .mood-gradient-burnedout {
+    background: linear-gradient(135deg, hsl(var(--mood-burnedout) / 0.2) 0%, hsl(25 25% 55% / 0.1) 100%);
+  }
+
+  .mood-gradient-overwhelmed {
+    background: linear-gradient(135deg, hsl(var(--mood-overwhelmed) / 0.2) 0%, hsl(280 45% 60% / 0.1) 100%);
+  }
+
+  .mood-gradient-nostalgic {
+    background: linear-gradient(135deg, hsl(var(--mood-nostalgic) / 0.2) 0%, hsl(40 50% 60% / 0.1) 100%);
+  }
+
+  .mood-gradient-heartbroken {
+    background: linear-gradient(135deg, hsl(var(--mood-heartbroken) / 0.2) 0%, hsl(340 40% 50% / 0.1) 100%);
+  }
+
+  .mood-gradient-motivated {
+    background: linear-gradient(135deg, hsl(var(--mood-motivated) / 0.2) 0%, hsl(160 65% 50% / 0.1) 100%);
+  }
+
+  .mood-gradient-bored {
+    background: linear-gradient(135deg, hsl(var(--mood-bored) / 0.2) 0%, hsl(210 25% 60% / 0.1) 100%);
+  }
+
+  .mood-gradient-hopeful {
+    background: linear-gradient(135deg, hsl(var(--mood-hopeful) / 0.2) 0%, hsl(180 65% 55% / 0.1) 100%);
+  }
+
+  .mood-gradient-curious {
+    background: linear-gradient(135deg, hsl(var(--mood-curious) / 0.2) 0%, hsl(290 60% 60% / 0.1) 100%);
   }
 }
 
