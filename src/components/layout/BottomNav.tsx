@@ -1,4 +1,4 @@
-import { Home, Search, Sparkles, Bookmark, User } from 'lucide-react';
+import { Home, Search, Sparkles, Bookmark, User, Users } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -7,7 +7,7 @@ const navItems = [
   { icon: Home, label: 'Home', path: '/' },
   { icon: Search, label: 'Search', path: '/search' },
   { icon: Sparkles, label: 'MoodMatch', path: '/mood' },
-  { icon: Bookmark, label: 'Watchlist', path: '/watchlist' },
+  { icon: Users, label: 'Party', path: '/party' },
   { icon: User, label: 'Profile', path: '/profile' },
 ];
 
@@ -19,7 +19,8 @@ export function BottomNav() {
       <div className="mx-auto max-w-lg">
         <div className="glass-card flex items-center justify-around px-2 py-3">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || 
+              (item.path === '/party' && location.pathname.startsWith('/party'));
             const Icon = item.icon;
 
             return (
@@ -30,7 +31,7 @@ export function BottomNav() {
               >
                 <motion.div
                   className={cn(
-                    "flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-colors duration-200",
+                    "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors duration-200",
                     isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
                   )}
                   whileTap={{ scale: 0.95 }}
