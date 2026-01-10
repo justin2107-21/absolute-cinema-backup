@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Search as SearchIcon, X, TrendingUp } from 'lucide-react';
@@ -7,37 +7,108 @@ import { MovieCard } from '@/components/movies/MovieCard';
 import { MovieGrid } from '@/components/movies/MovieGrid';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { searchMovies, getPopularMovies } from '@/lib/tmdb';
+import { SearchFilters, type Filter } from '@/components/search/SearchFilters';
+import { searchMovies, getPopularMovies, getTrendingMovies, getTopRatedMovies, getMoviesByGenre } from '@/lib/tmdb';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useNavigate } from 'react-router-dom';
+import { useSearch } from '@/contexts/SearchContext';
 
 export default function Search() {
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
   const navigate = useNavigate();
+  const { searchQuery, setSearchQuery, selectedFilter, setSelectedFilter } = useSearch();
   const { addToWatchlist, markAsWatched, isInWatchlist, isWatched } = useWatchlist();
 
-  // Debounce search
-  const handleSearch = (value: string) => {
-    setQuery(value);
-    const timeoutId = setTimeout(() => {
-      setDebouncedQuery(value);
-    }, 500);
-    return () => clearTimeout(timeoutId);
-  };
+  // Get filter-based results
+  const { data: filterResults, isLoading: isFilterLoading } = useQuery({
+    queryKey: ['filter', selectedFilter],
+    queryFn: async () => {
+      if (!selectedFilter) return null;
+      
+      // Find the filter config
+      const filterConfigs: Record<string, { type: string; value: string | number }> = {
+        'trending': { type: 'category', value: 'trending' },
+        'top-rated': { type: 'category', value: 'top_rated' },
+        'popular': { type: 'category', value: 'popular' },
+        'action': { type: 'genre', value: 28 },
+        'comedy': { type: 'genre', value: 35 },
+        'romance': { type: 'genre', value: 10749 },
+        'horror': { type: 'genre', value: 27 },
+        'scifi': { type: 'genre', value: 878 },
+        'drama': { type: 'genre', value: 18 },
+        'animation': { type: 'genre', value: 16 },
+        'music': { type: 'genre', value: 10402 },
+      };
+
+      const config = filterConfigs[selectedFilter];
+      if (!config) return null;
+
+      if (config.type === 'category') {
+        if (config.value === 'trending') return getTrendingMovies();
+        if (config.value === 'top_rated') return getTopRatedMovies();
+        if (config.value === 'popular') return getPopularMovies();
+      } else if (config.type === 'genre') {
+        return getMoviesByGenre(config.value as number);
+      }
+      return null;
+    },
+    enabled: !!selectedFilter && !searchQuery,
+  });
 
   const { data: searchResults, isLoading: isSearching } = useQuery({
-    queryKey: ['search', debouncedQuery],
-    queryFn: () => searchMovies(debouncedQuery),
-    enabled: debouncedQuery.length > 2,
+    queryKey: ['search', searchQuery],
+    queryFn: () => searchMovies(searchQuery),
+    enabled: searchQuery.length > 2,
   });
 
   const { data: popular } = useQuery({
-    queryKey: ['popular'],
+    queryKey: ['popular-default'],
     queryFn: () => getPopularMovies(),
+    enabled: !selectedFilter && searchQuery.length <= 2,
   });
 
-  const movies = debouncedQuery.length > 2 ? searchResults?.results : popular?.results;
+  // Determine which movies to display
+  const getDisplayMovies = useCallback(() => {
+    if (searchQuery.length > 2) {
+      return searchResults?.results || [];
+    }
+    if (selectedFilter && filterResults) {
+      return filterResults.results || [];
+    }
+    return popular?.results || [];
+  }, [searchQuery, selectedFilter, searchResults, filterResults, popular]);
+
+  const movies = getDisplayMovies();
+  const isLoading = isSearching || isFilterLoading;
+
+  const handleFilterSelect = (filter: Filter | null) => {
+    setSelectedFilter(filter?.id || null);
+    if (filter) {
+      setSearchQuery(''); // Clear search when filter is selected
+    }
+  };
+
+  const getTitle = () => {
+    if (searchQuery.length > 2) {
+      return `Results for "${searchQuery}"`;
+    }
+    if (selectedFilter) {
+      const filterLabels: Record<string, string> = {
+        'trending': 'Trending Movies',
+        'top-rated': 'Top Rated Movies',
+        'popular': 'Most Watched',
+        'action': 'Action Movies',
+        'comedy': 'Comedy Movies',
+        'romance': 'Romance Movies',
+        'horror': 'Horror Movies',
+        'scifi': 'Sci-Fi Movies',
+        'drama': 'Drama Movies',
+        'animation': 'Animation Movies',
+        'music': 'Musical Movies',
+      };
+      return filterLabels[selectedFilter] || 'Movies';
+    }
+    return undefined;
+  };
 
   return (
     <AppLayout>
@@ -58,38 +129,39 @@ export default function Search() {
             <Input
               type="text"
               placeholder="Search by title..."
-              value={query}
-              onChange={(e) => handleSearch(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12 pr-10"
             />
-            {query && (
+            {searchQuery && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
-                onClick={() => {
-                  setQuery('');
-                  setDebouncedQuery('');
-                }}
+                onClick={() => setSearchQuery('')}
               >
                 <X className="h-4 w-4" />
               </Button>
             )}
           </div>
+
+          {/* Filters */}
+          <SearchFilters 
+            selectedFilter={selectedFilter} 
+            onFilterSelect={handleFilterSelect}
+          />
         </header>
 
         {/* Results */}
         <div className="space-y-4">
-          {isSearching && (
+          {isLoading && (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
             </div>
           )}
 
-          {!isSearching && movies && movies.length > 0 && (
-            <MovieGrid
-              title={debouncedQuery.length > 2 ? `Results for "${debouncedQuery}"` : undefined}
-            >
+          {!isLoading && movies && movies.length > 0 && (
+            <MovieGrid title={getTitle()}>
               {movies.slice(0, 18).map((movie, index) => (
                 <motion.div
                   key={movie.id}
@@ -111,7 +183,7 @@ export default function Search() {
             </MovieGrid>
           )}
 
-          {!isSearching && debouncedQuery.length > 2 && searchResults?.results.length === 0 && (
+          {!isLoading && searchQuery.length > 2 && searchResults?.results.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -126,7 +198,7 @@ export default function Search() {
           )}
 
           {/* Popular section when not searching */}
-          {debouncedQuery.length <= 2 && (
+          {!selectedFilter && searchQuery.length <= 2 && (
             <div className="px-4 space-y-4">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-primary" />

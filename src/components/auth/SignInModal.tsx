@@ -30,14 +30,14 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
             onClick={onClose}
           />
 
-          {/* Modal */}
+          {/* Modal - Centered properly */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 mx-auto max-w-sm"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed z-50 inset-0 flex items-center justify-center p-4"
           >
-            <div className="glass-card p-6 space-y-6 text-center">
+            <div className="glass-card p-6 space-y-6 text-center max-w-sm w-full relative">
               {/* Close button */}
               <button
                 onClick={onClose}
@@ -47,7 +47,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
               </button>
 
               {/* Logo */}
-              <div className="flex justify-center">
+              <div className="flex justify-center pt-2">
                 <Logo size="lg" animated />
               </div>
 

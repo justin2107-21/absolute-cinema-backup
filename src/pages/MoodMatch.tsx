@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -10,32 +10,70 @@ import {
   Coffee,
   Sparkles,
   Send,
-  ArrowLeft
+  ArrowLeft,
+  Brain,
+  Moon,
+  CloudRain,
+  Flame,
+  Lightbulb,
+  Meh,
+  Search,
+  Compass,
+  HeartCrack,
+  Battery
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { MovieCard } from '@/components/movies/MovieCard';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { getMoviesByMood, moodToGenres } from '@/lib/tmdb';
+import { getMoviesByMood } from '@/lib/tmdb';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useNavigate } from 'react-router-dom';
+import { useMood } from '@/contexts/MoodContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
+// Extended moods list
 const moods = [
-  { id: 'happy', label: 'Happy', icon: Smile, color: 'text-mood-happy', bgClass: 'mood-gradient-happy', ring: 'ring-mood-happy' },
-  { id: 'sad', label: 'Sad', icon: Frown, color: 'text-mood-sad', bgClass: 'mood-gradient-sad', ring: 'ring-mood-sad' },
-  { id: 'stressed', label: 'Stressed', icon: Zap, color: 'text-mood-stressed', bgClass: 'mood-gradient-stressed', ring: 'ring-mood-stressed' },
-  { id: 'romantic', label: 'Romantic', icon: Heart, color: 'text-mood-romantic', bgClass: 'mood-gradient-romantic', ring: 'ring-mood-romantic' },
-  { id: 'excited', label: 'Excited', icon: PartyPopper, color: 'text-mood-excited', bgClass: 'mood-gradient-excited', ring: 'ring-mood-excited' },
-  { id: 'relaxed', label: 'Relaxed', icon: Coffee, color: 'text-mood-relaxed', bgClass: 'mood-gradient-relaxed', ring: 'ring-mood-relaxed' },
+  { id: 'happy', label: 'Happy', icon: Smile, color: 'text-mood-happy' },
+  { id: 'sad', label: 'Sad', icon: Frown, color: 'text-mood-sad' },
+  { id: 'stressed', label: 'Stressed', icon: Zap, color: 'text-mood-stressed' },
+  { id: 'romantic', label: 'Romantic', icon: Heart, color: 'text-mood-romantic' },
+  { id: 'excited', label: 'Excited', icon: PartyPopper, color: 'text-mood-excited' },
+  { id: 'relaxed', label: 'Relaxed', icon: Coffee, color: 'text-mood-relaxed' },
+  { id: 'lonely', label: 'Lonely', icon: Moon, color: 'text-mood-sad' },
+  { id: 'anxious', label: 'Anxious', icon: CloudRain, color: 'text-mood-stressed' },
+  { id: 'burned_out', label: 'Burned Out', icon: Battery, color: 'text-mood-stressed' },
+  { id: 'nostalgic', label: 'Nostalgic', icon: Brain, color: 'text-mood-relaxed' },
+  { id: 'heartbroken', label: 'Heartbroken', icon: HeartCrack, color: 'text-mood-sad' },
+  { id: 'motivated', label: 'Motivated', icon: Flame, color: 'text-mood-excited' },
+  { id: 'bored', label: 'Bored', icon: Meh, color: 'text-muted-foreground' },
+  { id: 'hopeful', label: 'Hopeful', icon: Lightbulb, color: 'text-mood-happy' },
+  { id: 'curious', label: 'Curious', icon: Compass, color: 'text-primary' },
 ];
+
+interface ChatMessage {
+  id?: string;
+  role: 'user' | 'assistant';
+  content: string;
+  showRecommendations?: boolean;
+  mood?: string;
+}
 
 export default function MoodMatch() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'ai'; message: string }[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  
   const navigate = useNavigate();
   const { addToWatchlist, markAsWatched, isInWatchlist, isWatched } = useWatchlist();
+  const { setCurrentMood } = useMood();
+  const { isAuthenticated, user } = useAuth();
 
   const { data: moodMovies, isLoading } = useQuery({
     queryKey: ['moodMovies', selectedMood],
@@ -43,57 +81,230 @@ export default function MoodMatch() {
     enabled: !!selectedMood,
   });
 
-  const handleMoodSelect = (moodId: string) => {
-    setSelectedMood(moodId);
+  // Load existing conversation on mount
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadConversation();
+    }
+  }, [isAuthenticated, user]);
+
+  // Scroll to bottom when chat updates
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
+
+  const loadConversation = async () => {
+    if (!user) return;
+    
+    try {
+      // Get most recent conversation
+      const { data: conversations } = await supabase
+        .from('chat_conversations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (conversations && conversations.length > 0) {
+        const conv = conversations[0];
+        setConversationId(conv.id);
+        
+        // Load messages
+        const { data: messages } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('conversation_id', conv.id)
+          .order('created_at', { ascending: true });
+
+        if (messages) {
+          setChatHistory(messages.map(m => ({
+            id: m.id,
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            showRecommendations: m.show_recommendations || false,
+          })));
+        }
+
+        if (conv.mood) {
+          setSelectedMood(conv.mood);
+          setCurrentMood(conv.mood);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+    }
   };
 
-  const handleChatSubmit = () => {
+  const saveMessage = async (message: ChatMessage, convId: string) => {
+    if (!user) return;
+    
+    try {
+      await supabase.from('chat_messages').insert({
+        conversation_id: convId,
+        role: message.role,
+        content: message.content,
+        show_recommendations: message.showRecommendations || false,
+      });
+    } catch (error) {
+      console.error('Error saving message:', error);
+    }
+  };
+
+  const createOrUpdateConversation = async (mood?: string): Promise<string> => {
+    if (!user) return '';
+    
+    try {
+      if (conversationId) {
+        // Update existing
+        await supabase
+          .from('chat_conversations')
+          .update({ mood, updated_at: new Date().toISOString() })
+          .eq('id', conversationId);
+        return conversationId;
+      } else {
+        // Create new
+        const { data } = await supabase
+          .from('chat_conversations')
+          .insert({ user_id: user.id, mood })
+          .select()
+          .single();
+        
+        if (data) {
+          setConversationId(data.id);
+          return data.id;
+        }
+      }
+    } catch (error) {
+      console.error('Error with conversation:', error);
+    }
+    return '';
+  };
+
+  const handleMoodSelect = async (moodId: string) => {
+    setSelectedMood(moodId);
+    setCurrentMood(moodId);
+    
+    if (isAuthenticated) {
+      await createOrUpdateConversation(moodId);
+    }
+  };
+
+  const handleChatSubmit = async () => {
     if (!chatInput.trim()) return;
 
-    const userMessage = chatInput;
-    setChatHistory((prev) => [...prev, { role: 'user', message: userMessage }]);
+    const userMessage: ChatMessage = { role: 'user', content: chatInput };
+    setChatHistory((prev) => [...prev, userMessage]);
     setChatInput('');
+    setIsAiThinking(true);
 
-    // Simple mood detection from text
-    const lowerMessage = userMessage.toLowerCase();
-    let detectedMood = 'happy';
+    try {
+      // Call the AI edge function
+      const { data, error } = await supabase.functions.invoke('mood-chat', {
+        body: { 
+          message: chatInput,
+          conversationHistory: chatHistory.map(m => ({ role: m.role, content: m.content }))
+        }
+      });
 
-    if (lowerMessage.includes('sad') || lowerMessage.includes('down') || lowerMessage.includes('upset')) {
-      detectedMood = 'sad';
-    } else if (lowerMessage.includes('stress') || lowerMessage.includes('anxious') || lowerMessage.includes('tired')) {
-      detectedMood = 'stressed';
-    } else if (lowerMessage.includes('love') || lowerMessage.includes('romantic') || lowerMessage.includes('date')) {
-      detectedMood = 'romantic';
-    } else if (lowerMessage.includes('excit') || lowerMessage.includes('energetic') || lowerMessage.includes('adventure')) {
-      detectedMood = 'excited';
-    } else if (lowerMessage.includes('relax') || lowerMessage.includes('calm') || lowerMessage.includes('chill')) {
-      detectedMood = 'relaxed';
-    } else if (lowerMessage.includes('happy') || lowerMessage.includes('fun') || lowerMessage.includes('laugh')) {
-      detectedMood = 'happy';
+      if (error) {
+        throw error;
+      }
+
+      const aiMessage: ChatMessage = {
+        role: 'assistant',
+        content: data.message,
+        showRecommendations: true,
+        mood: data.mood,
+      };
+
+      setChatHistory((prev) => [...prev, aiMessage]);
+      
+      if (data.mood) {
+        setSelectedMood(data.mood);
+        setCurrentMood(data.mood);
+      }
+
+      // Save to database if authenticated
+      if (isAuthenticated && user) {
+        const convId = await createOrUpdateConversation(data.mood);
+        await saveMessage(userMessage, convId);
+        await saveMessage(aiMessage, convId);
+      }
+    } catch (error: any) {
+      console.error('AI error:', error);
+      
+      // Handle rate limit errors
+      if (error.message?.includes('429') || error.message?.includes('Rate limit')) {
+        toast.error('Too many requests. Please wait a moment and try again.');
+      } else if (error.message?.includes('402')) {
+        toast.error('AI service temporarily unavailable.');
+      } else {
+        // Fallback to simple mood detection
+        const detectedMood = detectMoodFromText(chatInput);
+        const fallbackMessage: ChatMessage = {
+          role: 'assistant',
+          content: getEmpathyResponse(detectedMood),
+          showRecommendations: true,
+          mood: detectedMood,
+        };
+        setChatHistory((prev) => [...prev, fallbackMessage]);
+        setSelectedMood(detectedMood);
+        setCurrentMood(detectedMood);
+      }
+    } finally {
+      setIsAiThinking(false);
     }
+  };
 
-    const moodLabel = moods.find((m) => m.id === detectedMood)?.label;
-    
-    setTimeout(() => {
-      setChatHistory((prev) => [
-        ...prev,
-        {
-          role: 'ai',
-          message: `I sense you're feeling ${moodLabel?.toLowerCase()}! I've found some perfect movies to match your mood. Here are my recommendations:`,
-        },
-      ]);
-      setSelectedMood(detectedMood);
-    }, 1000);
+  const detectMoodFromText = (text: string): string => {
+    const lower = text.toLowerCase();
+    if (lower.match(/sad|down|upset|cry|depressed/)) return 'sad';
+    if (lower.match(/stress|anxious|worried|overwhelm/)) return 'stressed';
+    if (lower.match(/love|romantic|date|relationship/)) return 'romantic';
+    if (lower.match(/excit|thrill|adventure|action/)) return 'excited';
+    if (lower.match(/relax|calm|peace|chill/)) return 'relaxed';
+    if (lower.match(/lonely|alone|isolated/)) return 'lonely';
+    if (lower.match(/burned|exhausted|tired/)) return 'burned_out';
+    if (lower.match(/nostalg|remember|childhood/)) return 'nostalgic';
+    if (lower.match(/heartbr|breakup/)) return 'heartbroken';
+    if (lower.match(/motiv|inspir/)) return 'motivated';
+    if (lower.match(/bored/)) return 'bored';
+    if (lower.match(/hope|optimis/)) return 'hopeful';
+    if (lower.match(/curious|wonder/)) return 'curious';
+    return 'happy';
+  };
+
+  const getEmpathyResponse = (mood: string): string => {
+    const responses: Record<string, string> = {
+      happy: "That's wonderful! Your positive energy deserves some feel-good movies to match.",
+      sad: "I hear you. It's okay to feel this way. Let me find some movies that understand.",
+      stressed: "I completely understand – stress can be overwhelming. Let me find something to help you unwind.",
+      romantic: "Love is in the air! Let me find some heartwarming stories for you.",
+      excited: "I love your energy! Let's channel that into some thrilling entertainment.",
+      relaxed: "Perfect mood for some cozy viewing. Let me match your peaceful vibe.",
+      lonely: "I'm here with you. Movies have a way of making us feel less alone.",
+      anxious: "Take a deep breath. Let me find some calming films to ease your mind.",
+      burned_out: "Burnout is real. You deserve something comforting that won't demand too much.",
+      nostalgic: "There's something beautiful about looking back. Let me find that warm feeling.",
+      heartbroken: "I'm so sorry. Whether you need a cry or a lift, I've got you.",
+      motivated: "I love that drive! Let me find some inspiring stories.",
+      bored: "Let's shake things up with something unexpected!",
+      hopeful: "That optimism is beautiful. Let me match it with uplifting stories.",
+      curious: "I love your sense of wonder! Let me find something thought-provoking.",
+    };
+    return responses[mood] || responses.happy;
+  };
+
+  const handleShowRecommendations = () => {
+    // Scroll to recommendations
+    document.getElementById('recommendations')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const currentMoodConfig = moods.find((m) => m.id === selectedMood);
 
   return (
     <AppLayout>
-      <div className={cn(
-        "min-h-screen transition-all duration-500",
-        currentMoodConfig?.bgClass
-      )}>
+      <div className="min-h-screen transition-all duration-500">
         <div className="space-y-6 pt-4 pb-8">
           {/* Header */}
           <header className="px-4 space-y-2">
@@ -102,7 +313,10 @@ export default function MoodMatch() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setSelectedMood(null)}
+                  onClick={() => {
+                    setSelectedMood(null);
+                    setCurrentMood(null);
+                  }}
                   className="h-10 w-10"
                 >
                   <ArrowLeft className="h-5 w-5" />
@@ -143,10 +357,12 @@ export default function MoodMatch() {
                     
                     {/* Chat history */}
                     {chatHistory.length > 0 && (
-                      <div className="space-y-3 max-h-40 overflow-y-auto">
+                      <div className="space-y-3 max-h-60 overflow-y-auto">
                         {chatHistory.map((chat, index) => (
-                          <div
+                          <motion.div
                             key={index}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
                             className={cn(
                               "p-3 rounded-xl text-sm",
                               chat.role === 'user'
@@ -154,9 +370,32 @@ export default function MoodMatch() {
                                 : "bg-secondary mr-8"
                             )}
                           >
-                            {chat.message}
-                          </div>
+                            {chat.content}
+                            {chat.role === 'assistant' && chat.showRecommendations && (
+                              <Button
+                                size="sm"
+                                className="mt-3 w-full"
+                                onClick={handleShowRecommendations}
+                              >
+                                <Search className="h-4 w-4 mr-2" />
+                                Show Recommended Movies
+                              </Button>
+                            )}
+                          </motion.div>
                         ))}
+                        {isAiThinking && (
+                          <div className="p-3 rounded-xl bg-secondary mr-8">
+                            <div className="flex items-center gap-2">
+                              <div className="animate-pulse flex gap-1">
+                                <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                              </div>
+                              <span className="text-sm text-muted-foreground">Thinking...</span>
+                            </div>
+                          </div>
+                        )}
+                        <div ref={chatEndRef} />
                       </div>
                     )}
 
@@ -165,9 +404,10 @@ export default function MoodMatch() {
                         placeholder="e.g., I feel stressed and want something light..."
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleChatSubmit()}
+                        onKeyDown={(e) => e.key === 'Enter' && !isAiThinking && handleChatSubmit()}
+                        disabled={isAiThinking}
                       />
-                      <Button size="icon" onClick={handleChatSubmit}>
+                      <Button size="icon" onClick={handleChatSubmit} disabled={isAiThinking}>
                         <Send className="h-4 w-4" />
                       </Button>
                     </div>
@@ -178,7 +418,7 @@ export default function MoodMatch() {
                 <section className="px-4 space-y-4">
                   <h3 className="font-semibold">Or pick your mood</h3>
                   <div className="grid grid-cols-3 gap-3">
-                    {moods.map((mood) => {
+                    {moods.slice(0, 6).map((mood) => {
                       const Icon = mood.icon;
                       return (
                         <motion.button
@@ -199,6 +439,35 @@ export default function MoodMatch() {
                       );
                     })}
                   </div>
+                  
+                  {/* More moods */}
+                  <details className="group">
+                    <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                      Show more moods...
+                    </summary>
+                    <div className="grid grid-cols-3 gap-3 mt-3">
+                      {moods.slice(6).map((mood) => {
+                        const Icon = mood.icon;
+                        return (
+                          <motion.button
+                            key={mood.id}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleMoodSelect(mood.id)}
+                            className={cn(
+                              "glass-card flex flex-col items-center gap-2 p-4 transition-all",
+                              mood.color
+                            )}
+                          >
+                            <Icon className="h-6 w-6" />
+                            <span className="text-xs font-medium text-foreground">
+                              {mood.label}
+                            </span>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </details>
                 </section>
               </motion.div>
             ) : (
@@ -208,6 +477,7 @@ export default function MoodMatch() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-6"
+                id="recommendations"
               >
                 {/* Selected mood indicator */}
                 <section className="px-4">

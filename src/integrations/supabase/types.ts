@@ -14,7 +14,137 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          mood: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mood?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mood?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          recommendations: Json | null
+          role: string
+          show_recommendations: boolean | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          recommendations?: Json | null
+          role: string
+          show_recommendations?: boolean | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          recommendations?: Json | null
+          role?: string
+          show_recommendations?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      watchlist: {
+        Row: {
+          added_at: string
+          id: string
+          is_watched: boolean | null
+          movie_id: number
+          movie_title: string
+          poster_path: string | null
+          rating: number | null
+          review: string | null
+          user_id: string
+          watched_at: string | null
+        }
+        Insert: {
+          added_at?: string
+          id?: string
+          is_watched?: boolean | null
+          movie_id: number
+          movie_title: string
+          poster_path?: string | null
+          rating?: number | null
+          review?: string | null
+          user_id: string
+          watched_at?: string | null
+        }
+        Update: {
+          added_at?: string
+          id?: string
+          is_watched?: boolean | null
+          movie_id?: number
+          movie_title?: string
+          poster_path?: string | null
+          rating?: number | null
+          review?: string | null
+          user_id?: string
+          watched_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
