@@ -65,7 +65,7 @@ export const getPopularMovies = async (page = 1) => {
   );
 };
 
-export const getTrendingMovies = async (timeWindow: 'day' | 'week' = 'week') => {
+export const getTrendingMovies = async (timeWindow: 'day' | 'week' = 'day') => {
   return fetchTMDB<{ results: Movie[] }>(`/trending/movie/${timeWindow}`);
 };
 
@@ -101,10 +101,14 @@ export const getMovieDetails = async (movieId: number) => {
   return fetchTMDB<MovieDetails>(`/movie/${movieId}`, { append_to_response: 'videos' });
 };
 
-export const getMoviesByGenre = async (genreId: number, page = 1) => {
+export const getMoviesByGenre = async (genreId: number, page = 1, sortBy = 'popularity.desc') => {
   return fetchTMDB<{ results: Movie[]; page: number; total_pages: number }>(
     '/discover/movie',
-    { with_genres: genreId.toString(), page: page.toString() }
+    { 
+      with_genres: genreId.toString(), 
+      page: page.toString(),
+      sort_by: sortBy
+    }
   );
 };
 
@@ -120,7 +124,48 @@ export const getRecommendedMovies = async (movieId: number) => {
   return fetchTMDB<{ results: Movie[] }>(`/movie/${movieId}/recommendations`);
 };
 
-// Mood-based genre mapping
+// Discover movies with various filters
+export const discoverMovies = async (params: {
+  page?: number;
+  sortBy?: string;
+  withGenres?: number[];
+  withOriginalLanguage?: string;
+  voteAverageGte?: number;
+  voteCountGte?: number;
+  releaseDateGte?: string;
+  releaseDateLte?: string;
+}) => {
+  const queryParams: Record<string, string> = {
+    page: (params.page || 1).toString(),
+    sort_by: params.sortBy || 'popularity.desc',
+  };
+
+  if (params.withGenres?.length) {
+    queryParams.with_genres = params.withGenres.join(',');
+  }
+  if (params.withOriginalLanguage) {
+    queryParams.with_original_language = params.withOriginalLanguage;
+  }
+  if (params.voteAverageGte) {
+    queryParams['vote_average.gte'] = params.voteAverageGte.toString();
+  }
+  if (params.voteCountGte) {
+    queryParams['vote_count.gte'] = params.voteCountGte.toString();
+  }
+  if (params.releaseDateGte) {
+    queryParams['release_date.gte'] = params.releaseDateGte;
+  }
+  if (params.releaseDateLte) {
+    queryParams['release_date.lte'] = params.releaseDateLte;
+  }
+
+  return fetchTMDB<{ results: Movie[]; page: number; total_pages: number }>(
+    '/discover/movie',
+    queryParams
+  );
+};
+
+// Extended mood-based genre mapping with more variety
 export const moodToGenres: Record<string, number[]> = {
   happy: [35, 10751, 16], // Comedy, Family, Animation
   sad: [18, 10749], // Drama, Romance
@@ -128,16 +173,78 @@ export const moodToGenres: Record<string, number[]> = {
   romantic: [10749, 35], // Romance, Comedy
   excited: [28, 12, 878], // Action, Adventure, Sci-Fi
   relaxed: [99, 10751, 16], // Documentary, Family, Animation
+  lonely: [18, 10749, 10751], // Drama, Romance, Family
+  anxious: [35, 16, 10402], // Comedy, Animation, Music
+  burned_out: [16, 10751, 14], // Animation, Family, Fantasy
+  overwhelmed: [16, 35, 10751], // Animation, Comedy, Family
+  nostalgic: [10751, 16, 12], // Family, Animation, Adventure
+  heartbroken: [18, 10749, 10402], // Drama, Romance, Music
+  motivated: [28, 12, 36], // Action, Adventure, History
+  bored: [53, 9648, 878], // Thriller, Mystery, Sci-Fi
+  hopeful: [18, 10751, 14], // Drama, Family, Fantasy
+  curious: [99, 878, 9648], // Documentary, Sci-Fi, Mystery
 };
 
-export const getMoviesByMood = async (mood: string, page = 1) => {
+// Language codes for filtering
+export const languageCodes: Record<string, string> = {
+  filipino: 'tl',
+  korean: 'ko',
+  japanese: 'ja',
+  hindi: 'hi',
+  spanish: 'es',
+  french: 'fr',
+  german: 'de',
+  chinese: 'zh',
+  thai: 'th',
+};
+
+export const getMoviesByMood = async (mood: string, page = 1, language?: string) => {
   const genreIds = moodToGenres[mood.toLowerCase()] || [35];
+  
+  const params: Record<string, string> = {
+    with_genres: genreIds.join(','), 
+    page: page.toString(),
+    sort_by: 'popularity.desc',
+    'vote_count.gte': '100',
+  };
+
+  if (language && languageCodes[language.toLowerCase()]) {
+    params.with_original_language = languageCodes[language.toLowerCase()];
+  }
+
   return fetchTMDB<{ results: Movie[]; page: number; total_pages: number }>(
     '/discover/movie',
-    { 
-      with_genres: genreIds.join(','), 
-      page: page.toString(),
-      sort_by: 'popularity.desc'
-    }
+    params
   );
+};
+
+// Helper to deduplicate movies across lists
+export const deduplicateMovies = (movies: Movie[], existingIds: Set<number>): Movie[] => {
+  return movies.filter(movie => {
+    if (existingIds.has(movie.id)) return false;
+    existingIds.add(movie.id);
+    return true;
+  });
+};
+
+// Get diversified home page content
+export const getDiversifiedHomeContent = async () => {
+  const seenIds = new Set<number>();
+  
+  // Fetch from different endpoints with different pages for variety
+  const [trending, popular, topRated, nowPlaying, upcoming] = await Promise.all([
+    getTrendingMovies('day'),
+    getPopularMovies(2), // Page 2 for different results
+    getTopRatedMovies(1),
+    getNowPlayingMovies(1),
+    getUpcomingMovies(1),
+  ]);
+
+  return {
+    trending: deduplicateMovies(trending.results, seenIds).slice(0, 10),
+    popular: deduplicateMovies(popular.results, seenIds).slice(0, 10),
+    topRated: deduplicateMovies(topRated.results, seenIds).slice(0, 10),
+    nowPlaying: deduplicateMovies(nowPlaying.results, seenIds).slice(0, 10),
+    upcoming: deduplicateMovies(upcoming.results, seenIds).slice(0, 10),
+  };
 };
