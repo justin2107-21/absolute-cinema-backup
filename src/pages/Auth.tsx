@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
+import logoImage from '@/assets/logo.png';
 
 type AuthMode = 'login' | 'signup';
 
@@ -16,8 +18,14 @@ const usernameSchema = z.string().min(3, 'Username must be at least 3 characters
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, signup, isAuthenticated } = useAuth();
-  const [mode, setMode] = useState<AuthMode>('login');
+  
+  // Get initial mode from URL params (signup or login)
+  const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
+  const returnTo = searchParams.get('returnTo') || '/profile';
+  
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -27,9 +35,9 @@ export default function Auth() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate(returnTo);
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, returnTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +76,7 @@ export default function Auth() {
           }
         } else {
           toast.success('Account created successfully!');
-          navigate('/');
+          navigate(returnTo);
         }
       } else {
         const { error } = await login(email, password);
@@ -76,11 +84,11 @@ export default function Auth() {
           if (error.message.includes('Invalid login')) {
             toast.error('Invalid email or password. Please try again.');
           } else {
-            toast.error(error.message);
-          }
-        } else {
-          toast.success('Welcome back!');
-          navigate('/');
+          toast.error(error.message);
+        }
+      } else {
+        toast.success('Welcome back!');
+        navigate(returnTo);
         }
       }
     } catch (error) {
@@ -103,7 +111,7 @@ export default function Auth() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate('/')}
+          onClick={() => navigate(returnTo)}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -118,12 +126,14 @@ export default function Auth() {
         >
           {/* Logo */}
           <div className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-accent mb-4">
-              <Film className="h-8 w-8 text-white" />
-            </div>
+            <img 
+              src={logoImage} 
+              alt="Absolute Cinema" 
+              className="h-20 w-20 rounded-full object-cover mx-auto mb-4 shadow-lg"
+            />
             <h1 className="text-3xl font-bold">
-              <span className="gradient-text">Cinema</span>
-              <span className="text-accent">Sync</span>
+              <span className="text-foreground">Absolute</span>
+              <span className="text-primary ml-2">Cinema</span>
             </h1>
             <p className="text-muted-foreground">
               {mode === 'login' ? 'Welcome back!' : 'Create your account'}

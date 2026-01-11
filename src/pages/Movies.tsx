@@ -1,17 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, Star, Play, Calendar, Film, Tv, LayoutGrid, X } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, X, TrendingUp, Star, Play, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { MovieCard } from '@/components/movies/MovieCard';
 import { MovieRow } from '@/components/movies/MovieRow';
 import { MovieRowSkeleton } from '@/components/movies/MovieSkeleton';
-import { HeroSlider } from '@/components/home/HeroSlider';
-import { Logo } from '@/components/branding/Logo';
-import { getDiversifiedHomeContent } from '@/lib/tmdb';
-import { useWatchlist } from '@/hooks/useWatchlist';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useWatchlist } from '@/hooks/useWatchlist';
+import { getDiversifiedHomeContent } from '@/lib/tmdb';
 
 const GENRES = [
   { id: 28, name: 'Action' },
@@ -33,74 +31,49 @@ const GENRES = [
   { id: 37, name: 'Western' },
 ].sort((a, b) => a.name.localeCompare(b.name));
 
-export default function Home() {
+export default function Movies() {
   const navigate = useNavigate();
   const { addToWatchlist, markAsWatched, isInWatchlist, isWatched } = useWatchlist();
   const [showCategories, setShowCategories] = useState(false);
 
-  // Use diversified content to avoid duplicate movies across sections
   const { data: homeContent, isLoading } = useQuery({
-    queryKey: ['home-diversified'],
+    queryKey: ['movies-content'],
     queryFn: getDiversifiedHomeContent,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
   const handleCategorySelect = (genreId: number, genreName: string) => {
     setShowCategories(false);
-    navigate(`/search?genre=${genreId}&genreName=${genreName}`);
+    navigate(`/search?genre=${genreId}&genreName=${genreName}&type=movie`);
   };
 
   return (
     <AppLayout>
       <div className="space-y-4">
-        {/* Slim Logo Header */}
-        <header className="px-4 py-2 flex items-center">
-          <Logo size="sm" />
+        {/* Header with back button */}
+        <header className="px-4 pt-3 pb-2 flex items-center gap-3 border-b border-border/30">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/')}
+            className="h-9 w-9"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Movies</h1>
         </header>
 
-        {/* Auto-sliding Hero */}
-        {homeContent?.trending && homeContent.trending.length > 0 ? (
-          <HeroSlider 
-            movies={homeContent.trending} 
-            onAddToWatchlist={addToWatchlist}
-          />
-        ) : (
-          <div className="h-[55vh] bg-gradient-to-b from-primary/10 to-background animate-pulse" />
-        )}
-
-        {/* Quick Filter Buttons */}
+        {/* Categories Button */}
         <section className="px-4">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/movies')}
-              className="flex items-center gap-2 bg-background/80 backdrop-blur-sm border-border/50"
-            >
-              <Film className="h-4 w-4" />
-              Movies
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/tv-series')}
-              className="flex items-center gap-2 bg-background/80 backdrop-blur-sm border-border/50"
-            >
-              <Tv className="h-4 w-4" />
-              TV Series
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCategories(true)}
-              className="flex items-center gap-2 bg-background/80 backdrop-blur-sm border-border/50"
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Categories
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCategories(true)}
+            className="flex items-center gap-2 bg-background/80 backdrop-blur-sm border-border/50"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Categories
+          </Button>
         </section>
 
         {/* Categories Modal */}
@@ -113,10 +86,8 @@ export default function Home() {
               className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4"
               onClick={() => setShowCategories(false)}
             >
-              {/* Backdrop */}
               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
               
-              {/* Dropdown Content */}
               <motion.div
                 initial={{ opacity: 0, y: -20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -125,9 +96,8 @@ export default function Home() {
                 onClick={(e) => e.stopPropagation()}
                 className="relative w-full max-w-sm bg-card/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden z-10"
               >
-                {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-border/50">
-                  <h3 className="font-semibold text-foreground">Categories</h3>
+                  <h3 className="font-semibold text-foreground">Movie Categories</h3>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -138,7 +108,6 @@ export default function Home() {
                   </Button>
                 </div>
                 
-                {/* Genre List */}
                 <div className="max-h-80 overflow-y-auto p-2">
                   {GENRES.map((genre) => (
                     <button
@@ -155,7 +124,7 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* Movie Rows - Using diversified content */}
+        {/* Movie Rows - Netflix style */}
         {isLoading ? (
           <>
             <MovieRowSkeleton />
@@ -165,38 +134,73 @@ export default function Home() {
           </>
         ) : (
           <>
-            <MovieRow title="Trending Now" subtitle="What everyone's watching today" icon={<TrendingUp className="h-5 w-5" />}>
+            <MovieRow title="Trending Movies" subtitle="What everyone's watching" icon={<TrendingUp className="h-5 w-5" />}>
               {homeContent?.trending.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
-                  onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
+                <MovieCard 
+                  key={movie.id} 
+                  movie={movie} 
+                  onAddToWatchlist={addToWatchlist} 
+                  onMarkWatched={markAsWatched}
+                  onClick={() => navigate(`/movie/${movie.id}`)} 
+                  isInWatchlist={isInWatchlist(movie.id)} 
+                  isWatched={isWatched(movie.id)} 
+                />
               ))}
             </MovieRow>
 
-            <MovieRow title="Popular This Week" subtitle="Fan favorites" icon={<Star className="h-5 w-5" />}>
+            <MovieRow title="Popular Movies" subtitle="Fan favorites" icon={<Star className="h-5 w-5" />}>
               {homeContent?.popular.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
-                  onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
+                <MovieCard 
+                  key={movie.id} 
+                  movie={movie} 
+                  onAddToWatchlist={addToWatchlist} 
+                  onMarkWatched={markAsWatched}
+                  onClick={() => navigate(`/movie/${movie.id}`)} 
+                  isInWatchlist={isInWatchlist(movie.id)} 
+                  isWatched={isWatched(movie.id)} 
+                />
               ))}
             </MovieRow>
 
-            <MovieRow title="Top Rated" subtitle="Critically acclaimed" icon={<Star className="h-5 w-5" />}>
+            <MovieRow title="Top Rated Movies" subtitle="Critically acclaimed" icon={<Star className="h-5 w-5" />}>
               {homeContent?.topRated.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
-                  onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
+                <MovieCard 
+                  key={movie.id} 
+                  movie={movie} 
+                  onAddToWatchlist={addToWatchlist} 
+                  onMarkWatched={markAsWatched}
+                  onClick={() => navigate(`/movie/${movie.id}`)} 
+                  isInWatchlist={isInWatchlist(movie.id)} 
+                  isWatched={isWatched(movie.id)} 
+                />
               ))}
             </MovieRow>
 
             <MovieRow title="In Theaters" subtitle="Now showing" icon={<Play className="h-5 w-5" />}>
               {homeContent?.nowPlaying.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
-                  onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
+                <MovieCard 
+                  key={movie.id} 
+                  movie={movie} 
+                  onAddToWatchlist={addToWatchlist} 
+                  onMarkWatched={markAsWatched}
+                  onClick={() => navigate(`/movie/${movie.id}`)} 
+                  isInWatchlist={isInWatchlist(movie.id)} 
+                  isWatched={isWatched(movie.id)} 
+                />
               ))}
             </MovieRow>
 
             <MovieRow title="Coming Soon" subtitle="Mark your calendar" icon={<Calendar className="h-5 w-5" />}>
               {homeContent?.upcoming.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
-                  onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
+                <MovieCard 
+                  key={movie.id} 
+                  movie={movie} 
+                  onAddToWatchlist={addToWatchlist} 
+                  onMarkWatched={markAsWatched}
+                  onClick={() => navigate(`/movie/${movie.id}`)} 
+                  isInWatchlist={isInWatchlist(movie.id)} 
+                  isWatched={isWatched(movie.id)} 
+                />
               ))}
             </MovieRow>
           </>

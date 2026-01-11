@@ -15,6 +15,8 @@ import MoodMatch from "./pages/MoodMatch";
 import Watchlist from "./pages/Watchlist";
 import Profile from "./pages/Profile";
 import MovieDetails from "./pages/MovieDetails";
+import Movies from "./pages/Movies";
+import TVSeries from "./pages/TVSeries";
 import Groups from "./pages/Groups";
 import Friends from "./pages/Friends";
 import Auth from "./pages/Auth";
@@ -50,10 +52,13 @@ const App = () => {
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/search" element={<Search />} />
+                  <Route path="/movies" element={<Movies />} />
+                  <Route path="/tv-series" element={<TVSeries />} />
                   <Route path="/mood" element={<MoodMatch />} />
                   <Route path="/watchlist" element={<Watchlist />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/movie/:id" element={<MovieDetails />} />
+                  <Route path="/tv/:id" element={<MovieDetails />} />
                   <Route path="/groups" element={<Groups />} />
                   <Route path="/friends" element={<Friends />} />
                   <Route path="/auth" element={<Auth />} />

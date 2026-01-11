@@ -248,3 +248,80 @@ export const getDiversifiedHomeContent = async () => {
     upcoming: deduplicateMovies(upcoming.results, seenIds).slice(0, 10),
   };
 };
+
+// TV Show interface
+export interface TVShow {
+  id: number;
+  name: string;
+  overview: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  first_air_date: string;
+  vote_average: number;
+  vote_count: number;
+  genre_ids: number[];
+  popularity: number;
+}
+
+// TV Show API functions
+export const getTrendingTV = async (timeWindow: 'day' | 'week' = 'day') => {
+  return fetchTMDB<{ results: TVShow[] }>(`/trending/tv/${timeWindow}`);
+};
+
+export const getPopularTV = async (page = 1) => {
+  return fetchTMDB<{ results: TVShow[]; page: number; total_pages: number }>(
+    '/tv/popular',
+    { page: page.toString() }
+  );
+};
+
+export const getTopRatedTV = async (page = 1) => {
+  return fetchTMDB<{ results: TVShow[]; page: number; total_pages: number }>(
+    '/tv/top_rated',
+    { page: page.toString() }
+  );
+};
+
+export const getAiringTodayTV = async (page = 1) => {
+  return fetchTMDB<{ results: TVShow[]; page: number; total_pages: number }>(
+    '/tv/airing_today',
+    { page: page.toString() }
+  );
+};
+
+export const getOnTheAirTV = async (page = 1) => {
+  return fetchTMDB<{ results: TVShow[]; page: number; total_pages: number }>(
+    '/tv/on_the_air',
+    { page: page.toString() }
+  );
+};
+
+// Helper to deduplicate TV shows
+const deduplicateTV = (shows: TVShow[], existingIds: Set<number>): TVShow[] => {
+  return shows.filter(show => {
+    if (existingIds.has(show.id)) return false;
+    existingIds.add(show.id);
+    return true;
+  });
+};
+
+// Get diversified TV content
+export const getTVContent = async () => {
+  const seenIds = new Set<number>();
+  
+  const [trending, popular, topRated, airingToday, onTheAir] = await Promise.all([
+    getTrendingTV('day'),
+    getPopularTV(1),
+    getTopRatedTV(1),
+    getAiringTodayTV(1),
+    getOnTheAirTV(1),
+  ]);
+
+  return {
+    trending: deduplicateTV(trending.results, seenIds).slice(0, 10),
+    popular: deduplicateTV(popular.results, seenIds).slice(0, 10),
+    topRated: deduplicateTV(topRated.results, seenIds).slice(0, 10),
+    airingToday: deduplicateTV(airingToday.results, seenIds).slice(0, 10),
+    onTheAir: deduplicateTV(onTheAir.results, seenIds).slice(0, 10),
+  };
+};
