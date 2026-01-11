@@ -14,7 +14,12 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
 
   const handleSignIn = () => {
     onClose();
-    navigate('/auth');
+    navigate('/auth?mode=login&returnTo=/profile');
+  };
+
+  const handleCreateAccount = () => {
+    onClose();
+    navigate('/auth?mode=signup&returnTo=/profile');
   };
 
   return (
@@ -53,7 +58,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
 
               {/* Message */}
               <div className="space-y-2">
-                <h2 className="text-xl font-bold">Welcome to CinemaSync</h2>
+                <h2 className="text-xl font-bold">Welcome to Absolute Cinema</h2>
                 <p className="text-sm text-muted-foreground">
                   Sign in to unlock your personal movie experience. Track your watchlist, 
                   connect with friends, and get AI-powered recommendations.
@@ -83,7 +88,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 <Button className="w-full" onClick={handleSignIn}>
                   Sign In
                 </Button>
-                <Button variant="outline" className="w-full" onClick={handleSignIn}>
+                <Button variant="outline" className="w-full" onClick={handleCreateAccount}>
                   Create Account
                 </Button>
               </div>
