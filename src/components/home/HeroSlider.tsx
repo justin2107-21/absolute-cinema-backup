@@ -135,27 +135,21 @@ export function HeroSlider({
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation Arrows */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-20">
-          <Button
-            variant="glass"
-            size="icon"
-            className="h-10 w-10 rounded-full"
-            onClick={goToPrevious}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="glass"
-            size="icon"
-            className="h-10 w-10 rounded-full"
-            onClick={goToNext}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
-
         {/* Dot Indicators */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+          {displayMovies.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => goToSlide(index)}
+              className={cn(
+                "h-2 rounded-full transition-all duration-300",
+                index === currentIndex 
+                  ? "w-8 bg-primary" 
+                  : "w-2 bg-white/30 hover:bg-white/50"
+              )}
+            />
+          ))}
+        </div>
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
           {displayMovies.map((_, index) => (
             <button
