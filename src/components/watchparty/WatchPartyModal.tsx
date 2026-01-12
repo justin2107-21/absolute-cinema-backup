@@ -34,7 +34,7 @@ interface WatchPartyModalProps {
 }
 
 export function WatchPartyModal({ isOpen, onClose, movieTitle }: WatchPartyModalProps) {
-  const [roomUrl] = useState(`https://cinemasync.app/party/${Math.random().toString(36).substr(2, 9)}`);
+  const [roomUrl] = useState(`https://absolutecinema.app/party/${Math.random().toString(36).substr(2, 9)}`);
   const [isMuted, setIsMuted] = useState(false);
   const [hasVideo, setHasVideo] = useState(true);
   const [isSharing, setIsSharing] = useState(false);

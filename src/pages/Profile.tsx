@@ -24,7 +24,7 @@ export default function Profile() {
     { label: 'My Watchlist', icon: Bookmark, onClick: () => navigate('/watchlist'), requiresAuth: true },
     { label: 'Watch History', icon: Film, onClick: () => navigate('/watchlist'), requiresAuth: true },
     { label: 'Friends', icon: Users, onClick: () => navigate('/friends'), requiresAuth: true },
-    { label: 'Settings', icon: Settings, onClick: () => {}, requiresAuth: true },
+    { label: 'Settings', icon: Settings, onClick: () => navigate('/settings'), requiresAuth: false },
   ];
 
   const handleMenuClick = (item: typeof menuItems[0]) => {

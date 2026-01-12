@@ -11,17 +11,17 @@ interface LogoProps {
 
 export function Logo({ size = 'md', animated = false, showText = true, className }: LogoProps) {
   const sizeClasses = {
-    sm: 'h-8 w-8',
-    md: 'h-10 w-10',
-    lg: 'h-14 w-14',
-    xl: 'h-20 w-20',
+    sm: 'h-10 w-10',
+    md: 'h-12 w-12',
+    lg: 'h-16 w-16',
+    xl: 'h-24 w-24',
   };
 
   const textSizes = {
-    sm: 'text-base',
-    md: 'text-xl',
-    lg: 'text-2xl',
-    xl: 'text-4xl',
+    sm: 'text-lg',
+    md: 'text-2xl',
+    lg: 'text-3xl',
+    xl: 'text-5xl',
   };
 
   return (
@@ -67,7 +67,7 @@ export function Logo({ size = 'md', animated = false, showText = true, className
 
       {showText && (
         <motion.div 
-          className={cn('font-bold tracking-tight', textSizes[size])}
+          className={cn('font-display font-bold tracking-wide uppercase', textSizes[size])}
           initial={animated ? { opacity: 0, x: -10 } : {}}
           animate={animated ? { opacity: 1, x: 0 } : {}}
           transition={{ delay: 0.2 }}

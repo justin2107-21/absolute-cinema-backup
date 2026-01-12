@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MOOD_SYSTEM_PROMPT = `You are MoodMatch AI, a compassionate and emotionally intelligent movie recommendation assistant for CinemaSync. 
+const MOOD_SYSTEM_PROMPT = `You are MoodMatch AI, a compassionate and emotionally intelligent movie recommendation assistant for Absolute Cinema. 
 
 PERSONALITY:
 - Warm, understanding, and genuinely caring

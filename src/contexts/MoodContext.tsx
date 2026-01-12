@@ -163,7 +163,7 @@ export function MoodProvider({ children }: { children: ReactNode }) {
 
   const setMood = (mood: MoodType) => {
     setCurrentMood(mood);
-    localStorage.setItem('cinemasync_mood', mood);
+    localStorage.setItem('absolutecinema_mood', mood);
   };
 
   return (

@@ -8,12 +8,14 @@ import { AnimatePresence } from "framer-motion";
 import { MoodProvider } from "./contexts/MoodContext";
 import { SearchProvider } from "./contexts/SearchContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { SettingsProvider } from "./contexts/SettingsContext";
 import { LoadingScreen } from "./components/branding/LoadingScreen";
 import Home from "./pages/Home";
 import Search from "./pages/Search";
 import MoodMatch from "./pages/MoodMatch";
 import Watchlist from "./pages/Watchlist";
 import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 import MovieDetails from "./pages/MovieDetails";
 import Movies from "./pages/Movies";
 import TVSeries from "./pages/TVSeries";
@@ -37,40 +39,43 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <MoodProvider>
-        <AuthProvider>
-          <SearchProvider>
-            <BrowserRouter>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner position="top-center" />
-                
-                <AnimatePresence mode="wait">
-                  {isLoading && <LoadingScreen key="loading" />}
-                </AnimatePresence>
+      <SettingsProvider>
+        <MoodProvider>
+          <AuthProvider>
+            <SearchProvider>
+              <BrowserRouter>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner position="top-center" />
+                  
+                  <AnimatePresence mode="wait">
+                    {isLoading && <LoadingScreen key="loading" />}
+                  </AnimatePresence>
 
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/movies" element={<Movies />} />
-                  <Route path="/tv-series" element={<TVSeries />} />
-                  <Route path="/mood" element={<MoodMatch />} />
-                  <Route path="/watchlist" element={<Watchlist />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/movie/:id" element={<MovieDetails />} />
-                  <Route path="/tv/:id" element={<MovieDetails />} />
-                  <Route path="/groups" element={<Groups />} />
-                  <Route path="/friends" element={<Friends />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/party" element={<WatchParty />} />
-                  <Route path="/party/:roomId" element={<WatchParty />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </TooltipProvider>
-            </BrowserRouter>
-          </SearchProvider>
-        </AuthProvider>
-      </MoodProvider>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/search" element={<Search />} />
+                    <Route path="/movies" element={<Movies />} />
+                    <Route path="/tv-series" element={<TVSeries />} />
+                    <Route path="/mood" element={<MoodMatch />} />
+                    <Route path="/watchlist" element={<Watchlist />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/movie/:id" element={<MovieDetails />} />
+                    <Route path="/tv/:id" element={<MovieDetails />} />
+                    <Route path="/groups" element={<Groups />} />
+                    <Route path="/friends" element={<Friends />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/party" element={<WatchParty />} />
+                    <Route path="/party/:roomId" element={<WatchParty />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </TooltipProvider>
+              </BrowserRouter>
+            </SearchProvider>
+          </AuthProvider>
+        </MoodProvider>
+      </SettingsProvider>
     </QueryClientProvider>
   );
 };

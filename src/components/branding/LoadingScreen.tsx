@@ -101,9 +101,9 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
         className="mt-8 text-center"
       >
         <motion.h1 
-          className="text-4xl font-bold tracking-tight"
-          initial={{ letterSpacing: '0.1em' }}
-          animate={{ letterSpacing: '0em' }}
+          className="text-4xl font-display font-bold tracking-wide uppercase"
+          initial={{ letterSpacing: '0.2em' }}
+          animate={{ letterSpacing: '0.05em' }}
           transition={{ delay: 0.6, duration: 0.5 }}
         >
           <motion.span 

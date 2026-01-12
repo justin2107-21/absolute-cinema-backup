@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Movie } from '@/lib/tmdb';
 
-const WATCHLIST_KEY = 'cinemasync_watchlist';
-const WATCHED_KEY = 'cinemasync_watched';
+const WATCHLIST_KEY = 'absolutecinema_watchlist';
+const WATCHED_KEY = 'absolutecinema_watched';
 
 export interface WatchedMovie extends Movie {
   watchedAt: string;
