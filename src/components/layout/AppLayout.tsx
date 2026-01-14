@@ -1,14 +1,16 @@
 import { ReactNode } from 'react';
 import { BottomNav } from './BottomNav';
+import { Header } from './Header';
 import { useMood } from '@/contexts/MoodContext';
 import { cn } from '@/lib/utils';
 
 interface AppLayoutProps {
   children: ReactNode;
   hideNav?: boolean;
+  hideHeader?: boolean;
 }
 
-export function AppLayout({ children, hideNav = false }: AppLayoutProps) {
+export function AppLayout({ children, hideNav = false, hideHeader = false }: AppLayoutProps) {
   const { currentMood, theme } = useMood();
 
   return (
@@ -28,6 +30,9 @@ export function AppLayout({ children, hideNav = false }: AppLayoutProps) {
         />
         <div className="absolute -bottom-20 right-1/3 w-40 h-40 bg-cinema-blue/20 rounded-full blur-[60px] opacity-40" />
       </div>
+      
+      {/* Header */}
+      {!hideHeader && <Header />}
       
       {/* Main content */}
       <main className="relative z-10 pb-24">

@@ -188,6 +188,80 @@ export type Database = {
         }
         Relationships: []
       }
+      watch_party_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          message_type: string | null
+          room_id: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          message_type?: string | null
+          room_id: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          message_type?: string | null
+          room_id?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watch_party_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "watch_party_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watch_party_rooms: {
+        Row: {
+          code: string
+          created_at: string
+          host_id: string
+          id: string
+          is_active: boolean | null
+          movie_id: string | null
+          movie_poster: string | null
+          movie_title: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          host_id: string
+          id?: string
+          is_active?: boolean | null
+          movie_id?: string | null
+          movie_poster?: string | null
+          movie_title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          host_id?: string
+          id?: string
+          is_active?: boolean | null
+          movie_id?: string | null
+          movie_poster?: string | null
+          movie_title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       watchlist: {
         Row: {
           added_at: string
