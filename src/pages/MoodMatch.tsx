@@ -20,13 +20,19 @@ import {
   Search,
   Compass,
   HeartCrack,
-  Battery
+  Battery,
+  Film,
+  Tv,
+  BookOpen
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { MovieCard } from '@/components/movies/MovieCard';
+import { AnimeCard } from '@/components/anime/AnimeCard';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getMoviesByMood } from '@/lib/tmdb';
+import { getAnimeByMood, getMangaByMood, type AniListMedia } from '@/lib/anilist';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useNavigate } from 'react-router-dom';
 import { useMood } from '@/contexts/MoodContext';
@@ -68,6 +74,7 @@ export default function MoodMatch() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'movies' | 'anime' | 'manga'>('movies');
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   const navigate = useNavigate();
@@ -75,10 +82,25 @@ export default function MoodMatch() {
   const { setMood } = useMood();
   const { isAuthenticated, user } = useAuth();
 
-  const { data: moodMovies, isLoading } = useQuery({
+  // Movie query
+  const { data: moodMovies, isLoading: isLoadingMovies } = useQuery({
     queryKey: ['moodMovies', selectedMood],
     queryFn: () => getMoviesByMood(selectedMood!),
-    enabled: !!selectedMood,
+    enabled: !!selectedMood && activeTab === 'movies',
+  });
+
+  // Anime query
+  const { data: moodAnime, isLoading: isLoadingAnime } = useQuery({
+    queryKey: ['moodAnime', selectedMood],
+    queryFn: () => getAnimeByMood(selectedMood!),
+    enabled: !!selectedMood && activeTab === 'anime',
+  });
+
+  // Manga query
+  const { data: moodManga, isLoading: isLoadingManga } = useQuery({
+    queryKey: ['moodManga', selectedMood],
+    queryFn: () => getMangaByMood(selectedMood!),
+    enabled: !!selectedMood && activeTab === 'manga',
   });
 
   // Load existing conversation on mount
@@ -97,7 +119,6 @@ export default function MoodMatch() {
     if (!user) return;
     
     try {
-      // Get most recent conversation
       const { data: conversations } = await supabase
         .from('chat_conversations')
         .select('*')
@@ -109,7 +130,6 @@ export default function MoodMatch() {
         const conv = conversations[0];
         setConversationId(conv.id);
         
-        // Load messages
         const { data: messages } = await supabase
           .from('chat_messages')
           .select('*')
@@ -155,14 +175,12 @@ export default function MoodMatch() {
     
     try {
       if (conversationId) {
-        // Update existing
         await supabase
           .from('chat_conversations')
           .update({ mood, updated_at: new Date().toISOString() })
           .eq('id', conversationId);
         return conversationId;
       } else {
-        // Create new
         const { data } = await supabase
           .from('chat_conversations')
           .insert({ user_id: user.id, mood })
@@ -198,7 +216,6 @@ export default function MoodMatch() {
     setIsAiThinking(true);
 
     try {
-      // Call the AI edge function
       const { data, error } = await supabase.functions.invoke('mood-chat', {
         body: { 
           message: chatInput,
@@ -224,7 +241,6 @@ export default function MoodMatch() {
         setMood(data.mood as any);
       }
 
-      // Save to database if authenticated
       if (isAuthenticated && user) {
         const convId = await createOrUpdateConversation(data.mood);
         await saveMessage(userMessage, convId);
@@ -233,13 +249,11 @@ export default function MoodMatch() {
     } catch (error: any) {
       console.error('AI error:', error);
       
-      // Handle rate limit errors
       if (error.message?.includes('429') || error.message?.includes('Rate limit')) {
         toast.error('Too many requests. Please wait a moment and try again.');
       } else if (error.message?.includes('402')) {
         toast.error('AI service temporarily unavailable.');
       } else {
-        // Fallback to simple mood detection
         const detectedMood = detectMoodFromText(chatInput);
         const fallbackMessage: ChatMessage = {
           role: 'assistant',
@@ -271,19 +285,20 @@ export default function MoodMatch() {
     if (lower.match(/bored/)) return 'bored';
     if (lower.match(/hope|optimis/)) return 'hopeful';
     if (lower.match(/curious|wonder/)) return 'curious';
+    if (lower.match(/anime|manga|weeb/)) return 'excited';
     return 'happy';
   };
 
   const getEmpathyResponse = (mood: string): string => {
     const responses: Record<string, string> = {
-      happy: "That's wonderful! Your positive energy deserves some feel-good movies to match.",
-      sad: "I hear you. It's okay to feel this way. Let me find some movies that understand.",
+      happy: "That's wonderful! Your positive energy deserves some feel-good content to match.",
+      sad: "I hear you. It's okay to feel this way. Let me find something that understands.",
       stressed: "I completely understand – stress can be overwhelming. Let me find something to help you unwind.",
       romantic: "Love is in the air! Let me find some heartwarming stories for you.",
       excited: "I love your energy! Let's channel that into some thrilling entertainment.",
       relaxed: "Perfect mood for some cozy viewing. Let me match your peaceful vibe.",
-      lonely: "I'm here with you. Movies have a way of making us feel less alone.",
-      anxious: "Take a deep breath. Let me find some calming films to ease your mind.",
+      lonely: "I'm here with you. Stories have a way of making us feel less alone.",
+      anxious: "Take a deep breath. Let me find some calming content to ease your mind.",
       burned_out: "Burnout is real. You deserve something comforting that won't demand too much.",
       nostalgic: "There's something beautiful about looking back. Let me find that warm feeling.",
       heartbroken: "I'm so sorry. Whether you need a cry or a lift, I've got you.",
@@ -296,14 +311,18 @@ export default function MoodMatch() {
   };
 
   const handleShowRecommendations = () => {
-    // Scroll to recommendations
     document.getElementById('recommendations')?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleAnimeClick = (anime: AniListMedia) => {
+    navigate(`/watch/${anime.type.toLowerCase()}/${anime.id}`);
+  };
+
   const currentMoodConfig = moods.find((m) => m.id === selectedMood);
+  const isLoading = activeTab === 'movies' ? isLoadingMovies : activeTab === 'anime' ? isLoadingAnime : isLoadingManga;
 
   return (
-    <AppLayout>
+    <AppLayout hideHeader>
       <div className="min-h-screen transition-all duration-500">
         <div className="space-y-6 pt-4 pb-8">
           {/* Header */}
@@ -332,7 +351,7 @@ export default function MoodMatch() {
                   MoodMatch AI
                 </motion.h1>
                 <p className="text-sm text-muted-foreground">
-                  Find movies that match how you feel
+                  Find movies, anime & manga that match your mood
                 </p>
               </div>
             </div>
@@ -352,10 +371,9 @@ export default function MoodMatch() {
                   <div className="glass-card p-4 space-y-4">
                     <h3 className="font-semibold">How are you feeling?</h3>
                     <p className="text-sm text-muted-foreground">
-                      Describe your mood and I'll find the perfect movie for you
+                      Describe your mood and I'll find the perfect content for you
                     </p>
                     
-                    {/* Chat history */}
                     {chatHistory.length > 0 && (
                       <div className="space-y-3 max-h-60 overflow-y-auto">
                         {chatHistory.map((chat, index) => (
@@ -378,7 +396,7 @@ export default function MoodMatch() {
                                 onClick={handleShowRecommendations}
                               >
                                 <Search className="h-4 w-4 mr-2" />
-                                Show Recommended Movies
+                                Show Recommendations
                               </Button>
                             )}
                           </motion.div>
@@ -401,7 +419,7 @@ export default function MoodMatch() {
 
                     <div className="flex gap-2">
                       <Input
-                        placeholder="e.g., I feel stressed and want something light..."
+                        placeholder="e.g., I feel stressed and want some anime..."
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && !isAiThinking && handleChatSubmit()}
@@ -440,7 +458,6 @@ export default function MoodMatch() {
                     })}
                   </div>
                   
-                  {/* More moods */}
                   <details className="group">
                     <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
                       Show more moods...
@@ -472,7 +489,7 @@ export default function MoodMatch() {
               </motion.div>
             ) : (
               <motion.div
-                key="movie-results"
+                key="content-results"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
@@ -487,7 +504,7 @@ export default function MoodMatch() {
                         <currentMoodConfig.icon className={cn("h-6 w-6", currentMoodConfig.color)} />
                         <div>
                           <h3 className="font-semibold">
-                            Movies for when you're {currentMoodConfig.label.toLowerCase()}
+                            Content for when you're {currentMoodConfig.label.toLowerCase()}
                           </h3>
                           <p className="text-sm text-muted-foreground">
                             Curated picks to match your mood
@@ -498,35 +515,104 @@ export default function MoodMatch() {
                   </div>
                 </section>
 
-                {/* Movie Results */}
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-                  </div>
-                ) : (
-                  <section className="px-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      {moodMovies?.results.slice(0, 12).map((movie, index) => (
-                        <motion.div
-                          key={movie.id}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.05 }}
-                        >
-                          <MovieCard
-                            movie={movie}
-                            size="sm"
-                            onAddToWatchlist={addToWatchlist}
-                            onMarkWatched={markAsWatched}
-                            onClick={() => navigate(`/movie/${movie.id}`)}
-                            isInWatchlist={isInWatchlist(movie.id)}
-                            isWatched={isWatched(movie.id)}
-                          />
-                        </motion.div>
-                      ))}
-                    </div>
-                  </section>
-                )}
+                {/* Content Type Tabs */}
+                <section className="px-4">
+                  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="movies" className="gap-2">
+                        <Film className="h-4 w-4" />
+                        Movies
+                      </TabsTrigger>
+                      <TabsTrigger value="anime" className="gap-2">
+                        <Tv className="h-4 w-4" />
+                        Anime
+                      </TabsTrigger>
+                      <TabsTrigger value="manga" className="gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        Manga
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="movies" className="mt-4">
+                      {isLoadingMovies ? (
+                        <div className="flex items-center justify-center py-12">
+                          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-4">
+                          {moodMovies?.results.slice(0, 12).map((movie, index) => (
+                            <motion.div
+                              key={movie.id}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: index * 0.05 }}
+                            >
+                              <MovieCard
+                                movie={movie}
+                                size="sm"
+                                onAddToWatchlist={addToWatchlist}
+                                onMarkWatched={markAsWatched}
+                                onClick={() => navigate(`/movie/${movie.id}`)}
+                                isInWatchlist={isInWatchlist(movie.id)}
+                                isWatched={isWatched(movie.id)}
+                              />
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="anime" className="mt-4">
+                      {isLoadingAnime ? (
+                        <div className="flex items-center justify-center py-12">
+                          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-4">
+                          {moodAnime?.slice(0, 12).map((anime, index) => (
+                            <motion.div
+                              key={anime.id}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: index * 0.05 }}
+                            >
+                              <AnimeCard
+                                anime={anime}
+                                size="sm"
+                                onClick={() => handleAnimeClick(anime)}
+                              />
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="manga" className="mt-4">
+                      {isLoadingManga ? (
+                        <div className="flex items-center justify-center py-12">
+                          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-4">
+                          {moodManga?.slice(0, 12).map((manga, index) => (
+                            <motion.div
+                              key={manga.id}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: index * 0.05 }}
+                            >
+                              <AnimeCard
+                                anime={manga}
+                                size="sm"
+                                onClick={() => handleAnimeClick(manga)}
+                              />
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </section>
               </motion.div>
             )}
           </AnimatePresence>

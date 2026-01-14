@@ -1,30 +1,73 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Plus, ArrowLeft, Link, Copy, Search } from 'lucide-react';
+import { Users, Plus, Link, Copy, History } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { WatchPartyModal } from '@/components/watchparty/WatchPartyModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+interface RecentParty {
+  id: string;
+  code: string;
+  movie_title: string | null;
+  created_at: string;
+}
 
 export default function WatchParty() {
   const { roomId } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const [showPartyModal, setShowPartyModal] = useState(!!roomId);
   const [joinCode, setJoinCode] = useState('');
+  const [recentParties, setRecentParties] = useState<RecentParty[]>([]);
+
+  // Load recent parties
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadRecentParties();
+    }
+  }, [isAuthenticated, user]);
+
+  const loadRecentParties = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('watch_party_rooms')
+      .select('id, code, movie_title, created_at')
+      .eq('host_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    if (data) {
+      setRecentParties(data);
+    }
+  };
 
   const createParty = () => {
+    if (!isAuthenticated) {
+      toast.error('Please sign in to create a watch party');
+      navigate('/auth');
+      return;
+    }
     setShowPartyModal(true);
   };
 
   const joinParty = () => {
     if (joinCode.trim()) {
-      navigate(`/party/${joinCode}`);
+      navigate(`/party/${joinCode.toUpperCase()}`);
       setShowPartyModal(true);
     } else {
       toast.error('Please enter a room code');
     }
+  };
+
+  const rejoinParty = (code: string) => {
+    navigate(`/party/${code}`);
+    setShowPartyModal(true);
   };
 
   if (showPartyModal) {
@@ -36,6 +79,7 @@ export default function WatchParty() {
           navigate('/party');
         }}
         movieTitle="Movie Night"
+        roomCode={roomId}
       />
     );
   }
@@ -104,10 +148,11 @@ export default function WatchParty() {
             </div>
             <div className="flex gap-2">
               <Input
-                placeholder="Enter room code..."
+                placeholder="Enter room code (e.g., ABC123)"
                 value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === 'Enter' && joinParty()}
+                className="font-mono uppercase"
               />
               <Button onClick={joinParty}>
                 Join
@@ -141,14 +186,40 @@ export default function WatchParty() {
           </div>
         </section>
 
-        {/* Recent Parties (placeholder) */}
+        {/* Recent Parties */}
         <section className="px-4 pb-8 space-y-4">
-          <h3 className="font-semibold">Recent Parties</h3>
-          <div className="text-center py-8 text-muted-foreground">
-            <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No recent parties</p>
-            <p className="text-xs">Create a party to get started!</p>
-          </div>
+          <h3 className="font-semibold flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Recent Parties
+          </h3>
+          {recentParties.length > 0 ? (
+            <div className="space-y-2">
+              {recentParties.map((party) => (
+                <motion.div
+                  key={party.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="glass-card p-4 flex items-center justify-between"
+                >
+                  <div>
+                    <p className="font-medium">{party.movie_title || 'Watch Party'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Code: {party.code} • {new Date(party.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="secondary" onClick={() => rejoinParty(party.code)}>
+                    Rejoin
+                  </Button>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No recent parties</p>
+              <p className="text-xs">Create a party to get started!</p>
+            </div>
+          )}
         </section>
       </div>
     </AppLayout>
