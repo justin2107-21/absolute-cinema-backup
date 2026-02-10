@@ -116,8 +116,12 @@ export function useWatchParty(roomCode?: string) {
   };
 
   // Send a chat message
+  const MAX_MESSAGE_LENGTH = 2000;
+
   const sendMessage = async (content: string, messageType: 'chat' | 'reaction' | 'system' = 'chat') => {
     if (!room || !user) return;
+    const trimmed = content.trim();
+    if (!trimmed || trimmed.length > MAX_MESSAGE_LENGTH) return;
 
     const username = user.email?.split('@')[0] || 'Anonymous';
 
