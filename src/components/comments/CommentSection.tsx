@@ -163,9 +163,15 @@ export function CommentSection({
   }, [contentId, refetch]);
 
   // Add comment mutation
+  const MAX_COMMENT_LENGTH = 5000;
+
   const addComment = useMutation({
     mutationFn: async ({ content, parentId }: { content: string; parentId?: string }) => {
       if (!user) throw new Error('Not authenticated');
+      const trimmed = content.trim();
+      if (!trimmed || trimmed.length > MAX_COMMENT_LENGTH) {
+        throw new Error(`Comment must be between 1 and ${MAX_COMMENT_LENGTH} characters`);
+      }
 
       const { error } = await supabase.from('comments').insert({
         user_id: user.id,
@@ -329,8 +335,9 @@ export function CommentSection({
             <Textarea
               placeholder="Write a reply..."
               value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
+              onChange={(e) => setReplyContent(e.target.value.slice(0, MAX_COMMENT_LENGTH))}
               className="min-h-[60px] text-sm"
+              maxLength={MAX_COMMENT_LENGTH}
             />
             <Button
               size="icon"
@@ -407,12 +414,18 @@ export function CommentSection({
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 flex gap-2">
-            <Textarea
-              placeholder="Add a comment..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="min-h-[80px]"
-            />
+            <div className="flex-1">
+              <Textarea
+                placeholder="Add a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value.slice(0, MAX_COMMENT_LENGTH))}
+                className="min-h-[80px]"
+                maxLength={MAX_COMMENT_LENGTH}
+              />
+              {newComment.length > MAX_COMMENT_LENGTH * 0.9 && (
+                <p className="text-xs text-muted-foreground mt-1">{newComment.length}/{MAX_COMMENT_LENGTH}</p>
+              )}
+            </div>
             <Button
               size="icon"
               onClick={() => addComment.mutate({ content: newComment })}
