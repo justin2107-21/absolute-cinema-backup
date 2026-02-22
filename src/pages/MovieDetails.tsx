@@ -8,13 +8,13 @@ import {
   Calendar,
   Plus,
   Check,
-  Play,
   Share2
 } from 'lucide-react';
 import { getMovieDetails, getSimilarMovies, getImageUrl } from '@/lib/tmdb';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { MovieRow } from '@/components/movies/MovieRow';
 import { MovieCard } from '@/components/movies/MovieCard';
+import { CommentSection } from '@/components/comments/CommentSection';
 import { Button } from '@/components/ui/button';
 import { useWatchlist } from '@/hooks/useWatchlist';
 
@@ -168,26 +168,19 @@ export default function MovieDetails() {
         <section className="px-4 -mt-2 relative z-20">
           <div className="flex gap-3">
             <Button
-              className="flex-1 gap-2"
-              onClick={() => navigate(`/watch/movie/${movie.id}`)}
-            >
-              <Play className="h-4 w-4" />
-              Watch Now
-            </Button>
-            <Button
               variant={inWatchlist ? "secondary" : "outline"}
-              className="gap-2"
+              className="flex-1 gap-2"
               onClick={() => addToWatchlist(movie)}
             >
               {inWatchlist ? (
                 <>
                   <Check className="h-4 w-4" />
-                  In List
+                  In Watchlist
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4" />
-                  Watchlist
+                  Add to Watchlist
                 </>
               )}
             </Button>
@@ -199,7 +192,7 @@ export default function MovieDetails() {
               {watched ? (
                 <Check className="h-4 w-4 text-cinema-green" />
               ) : (
-                <Play className="h-4 w-4" />
+                <Check className="h-4 w-4" />
               )}
             </Button>
             <Button variant="glass" size="icon">
@@ -251,6 +244,14 @@ export default function MovieDetails() {
             </MovieRow>
           </div>
         )}
+
+        {/* Comment Section */}
+        <div className="mt-8">
+          <CommentSection
+            contentType="movie"
+            contentId={id || ''}
+          />
+        </div>
       </div>
     </AppLayout>
   );
