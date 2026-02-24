@@ -48,18 +48,21 @@ interface ChatMessage {
   showRecommendations?: boolean;
   mood?: string;
   preferences?: MoodPreferences;
+  recommendations?: MoodRecommendations | null;
+  isLoadingRecs?: boolean;
 }
 
+// View modes: 'home' (chat + mood grid), 'general-mood' (generic mood results), 'ai-recs' (inline AI recommendations shown in chat)
+type ViewMode = 'home' | 'general-mood';
+
 export default function MoodMatch() {
+  const [viewMode, setViewMode] = useState<ViewMode>('home');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'movies' | 'anime' | 'manga'>('movies');
-  const [currentPreferences, setCurrentPreferences] = useState<MoodPreferences | null>(null);
-  const [smartRecommendations, setSmartRecommendations] = useState<MoodRecommendations | null>(null);
-  const [isLoadingSmartRecs, setIsLoadingSmartRecs] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const navigate = useNavigate();
@@ -67,23 +70,23 @@ export default function MoodMatch() {
   const { setMood } = useMood();
   const { isAuthenticated, user } = useAuth();
 
-  // Fallback movie query for mood button selection
+  // Fallback movie query for general mood button selection only
   const { data: moodMovies, isLoading: isLoadingMovies } = useQuery({
     queryKey: ['moodMovies', selectedMood],
     queryFn: () => getMoviesByMood(selectedMood!),
-    enabled: !!selectedMood && !currentPreferences && activeTab === 'movies',
+    enabled: !!selectedMood && viewMode === 'general-mood' && activeTab === 'movies',
   });
 
   const { data: moodAnime, isLoading: isLoadingAnime } = useQuery({
     queryKey: ['moodAnime', selectedMood],
     queryFn: () => getAnimeByMood(selectedMood!),
-    enabled: !!selectedMood && activeTab === 'anime',
+    enabled: !!selectedMood && viewMode === 'general-mood' && activeTab === 'anime',
   });
 
   const { data: moodManga, isLoading: isLoadingManga } = useQuery({
     queryKey: ['moodManga', selectedMood],
     queryFn: () => getMangaByMood(selectedMood!),
-    enabled: !!selectedMood && activeTab === 'manga',
+    enabled: !!selectedMood && viewMode === 'general-mood' && activeTab === 'manga',
   });
 
   useEffect(() => {
@@ -124,11 +127,6 @@ export default function MoodMatch() {
             showRecommendations: m.show_recommendations || false,
             preferences: m.recommendations as unknown as MoodPreferences | undefined,
           })));
-        }
-
-        if (conv.mood) {
-          setSelectedMood(conv.mood);
-          setMood(conv.mood as any);
         }
       }
     } catch (error) {
@@ -177,35 +175,35 @@ export default function MoodMatch() {
     return '';
   };
 
+  // General mood button handler - switches to general-mood view
   const handleMoodSelect = async (moodId: string) => {
     setSelectedMood(moodId);
     setMood(moodId as any);
-    setCurrentPreferences(null);
-    setSmartRecommendations(null);
+    setViewMode('general-mood');
     if (isAuthenticated) {
       await createOrUpdateConversation(moodId);
     }
   };
 
-  const handleShowRecommendations = async (prefs: MoodPreferences) => {
-    setSelectedMood(prefs.primary_emotion);
-    setMood(prefs.primary_emotion as any);
-    setCurrentPreferences(prefs);
-    setIsLoadingSmartRecs(true);
+  // AI personalized recommendations - loads inline in chat
+  const handleShowRecommendations = async (messageIndex: number, prefs: MoodPreferences) => {
+    // Set loading state on the specific message
+    setChatHistory(prev => prev.map((m, i) => 
+      i === messageIndex ? { ...m, isLoadingRecs: true } : m
+    ));
 
     try {
       const recs = await getMoodRecommendations(prefs);
-      setSmartRecommendations(recs);
+      setChatHistory(prev => prev.map((m, i) => 
+        i === messageIndex ? { ...m, recommendations: recs, isLoadingRecs: false, showRecommendations: false } : m
+      ));
     } catch (error) {
       console.error('Error fetching recommendations:', error);
-      toast.error('Failed to load recommendations. Showing fallback results.');
-    } finally {
-      setIsLoadingSmartRecs(false);
+      toast.error('Failed to load recommendations.');
+      setChatHistory(prev => prev.map((m, i) => 
+        i === messageIndex ? { ...m, isLoadingRecs: false } : m
+      ));
     }
-
-    setTimeout(() => {
-      document.getElementById('recommendations')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
   };
 
   const handleChatSubmit = async () => {
@@ -238,8 +236,8 @@ export default function MoodMatch() {
 
       setChatHistory((prev) => [...prev, aiMessage]);
 
+      // Update theme but do NOT switch view - stay in chat
       if (data.mood) {
-        setSelectedMood(data.mood);
         setMood(data.mood as any);
       }
 
@@ -275,7 +273,6 @@ export default function MoodMatch() {
           preferences: fallbackPrefs,
         };
         setChatHistory((prev) => [...prev, fallbackMessage]);
-        setSelectedMood(detectedMood);
         setMood(detectedMood as any);
       }
     } finally {
@@ -327,14 +324,72 @@ export default function MoodMatch() {
   };
 
   const currentMoodConfig = moods.find((m) => m.id === selectedMood);
-  const hasSmartRecs = !!smartRecommendations;
-  const isLoading = activeTab === 'movies'
-    ? (hasSmartRecs ? isLoadingSmartRecs : isLoadingMovies)
-    : activeTab === 'anime' ? isLoadingAnime : isLoadingManga;
 
-  const movieResults = hasSmartRecs
-    ? smartRecommendations!.popular
-    : moodMovies?.results.slice(0, 12) || [];
+  // Render inline recommendation cards for a chat message
+  const renderInlineRecs = (recs: MoodRecommendations) => (
+    <div className="space-y-5 mt-3">
+      {recs.popular.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="font-semibold flex items-center gap-1.5 text-xs text-primary">
+            <Star className="h-3.5 w-3.5" /> Popular
+          </h4>
+          <div className="grid grid-cols-3 gap-2">
+            {recs.popular.slice(0, 6).map((movie) => (
+              <MovieCard key={movie.id} movie={movie} size="sm" onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched} onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
+            ))}
+          </div>
+        </div>
+      )}
+      {recs.trending.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="font-semibold flex items-center gap-1.5 text-xs text-primary">
+            <TrendingUp className="h-3.5 w-3.5" /> Trending
+          </h4>
+          <div className="grid grid-cols-3 gap-2">
+            {recs.trending.slice(0, 6).map((movie) => (
+              <MovieCard key={movie.id} movie={movie} size="sm" onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched} onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
+            ))}
+          </div>
+        </div>
+      )}
+      {recs.underrated.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="font-semibold flex items-center gap-1.5 text-xs text-primary">
+            <Eye className="h-3.5 w-3.5" /> Hidden Gems
+          </h4>
+          <div className="grid grid-cols-3 gap-2">
+            {recs.underrated.slice(0, 6).map((movie) => (
+              <MovieCard key={movie.id} movie={movie} size="sm" onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched} onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
+            ))}
+          </div>
+        </div>
+      )}
+      {recs.tvSeries.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="font-semibold flex items-center gap-1.5 text-xs text-primary">
+            <Tv className="h-3.5 w-3.5" /> TV Series
+          </h4>
+          <div className="grid grid-cols-3 gap-2">
+            {recs.tvSeries.slice(0, 6).map((show) => (
+              <div key={show.id} className="cursor-pointer" onClick={() => navigate(`/movie/${show.id}?type=tv`)}>
+                <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted">
+                  {show.poster_path ? (
+                    <img src={`https://image.tmdb.org/t/p/w300${show.poster_path}`} alt={show.name} className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Tv className="h-6 w-6" /></div>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                    <p className="text-white text-[10px] font-medium line-clamp-2">{show.name}</p>
+                    <p className="text-white/70 text-[9px]">⭐ {show.vote_average.toFixed(1)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <AppLayout hideHeader>
@@ -343,15 +398,14 @@ export default function MoodMatch() {
           {/* Header */}
           <header className="px-4 space-y-2">
             <div className="flex items-center gap-3">
-              {selectedMood && (
+              {viewMode === 'general-mood' && (
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => {
+                    setViewMode('home');
                     setSelectedMood(null);
                     setMood('default');
-                    setCurrentPreferences(null);
-                    setSmartRecommendations(null);
                   }}
                   className="h-10 w-10"
                 >
@@ -365,34 +419,37 @@ export default function MoodMatch() {
                   className="text-2xl font-bold flex items-center gap-2"
                 >
                   <Sparkles className="h-6 w-6 text-primary" />
-                  MoodMatch AI
+                  Lumina AI
                 </motion.h1>
                 <p className="text-sm text-muted-foreground">
-                  AI-powered emotional analysis & smart recommendations
+                  AI-powered emotional analysis & personalized recommendations
                 </p>
               </div>
             </div>
           </header>
 
           <AnimatePresence mode="wait">
-            {!selectedMood ? (
+            {viewMode === 'home' ? (
               <motion.div
-                key="mood-selection"
+                key="home-view"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="space-y-8"
               >
-                {/* Chat Interface */}
+                {/* Lumina AI Chat Interface */}
                 <section className="px-4 space-y-4">
                   <div className="glass-card p-4 space-y-4">
-                    <h3 className="font-semibold">How are you feeling?</h3>
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-primary" />
+                      Talk to Lumina
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      Describe your mood and I'll find the perfect content for you
+                      Tell me how you're feeling and I'll find the perfect content personalized just for you.
                     </p>
 
                     {chatHistory.length > 0 && (
-                      <div className="space-y-3 max-h-80 overflow-y-auto">
+                      <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                         {chatHistory.map((chat, index) => (
                           <motion.div
                             key={index}
@@ -402,12 +459,12 @@ export default function MoodMatch() {
                               "p-3 rounded-xl text-sm",
                               chat.role === 'user'
                                 ? "bg-primary/20 ml-8"
-                                : "bg-secondary mr-8"
+                                : "bg-secondary mr-4"
                             )}
                           >
                             {chat.content}
 
-                            {/* Detected preferences badge */}
+                            {/* Detected preferences badges */}
                             {chat.role === 'assistant' && chat.preferences && (
                               <div className="mt-2 flex flex-wrap gap-1">
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
@@ -429,16 +486,31 @@ export default function MoodMatch() {
                               </div>
                             )}
 
-                            {chat.role === 'assistant' && chat.showRecommendations && chat.preferences && (
+                            {/* Show Movies For Me button */}
+                            {chat.role === 'assistant' && chat.showRecommendations && chat.preferences && !chat.recommendations && (
                               <Button
                                 size="sm"
+                                variant="mood"
                                 className="mt-3 w-full"
-                                onClick={() => handleShowRecommendations(chat.preferences!)}
+                                disabled={chat.isLoadingRecs}
+                                onClick={() => handleShowRecommendations(index, chat.preferences!)}
                               >
-                                <Search className="h-4 w-4 mr-2" />
-                                Show Recommendations
+                                {chat.isLoadingRecs ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
+                                    Finding movies...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Search className="h-4 w-4 mr-2" />
+                                    Show Movies for Me
+                                  </>
+                                )}
                               </Button>
                             )}
+
+                            {/* Inline personalized recommendations */}
+                            {chat.recommendations && renderInlineRecs(chat.recommendations)}
                           </motion.div>
                         ))}
                         {isAiThinking && (
@@ -449,7 +521,7 @@ export default function MoodMatch() {
                                 <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
                                 <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
                               </div>
-                              <span className="text-sm text-muted-foreground">Analyzing your mood...</span>
+                              <span className="text-sm text-muted-foreground">Lumina is thinking...</span>
                             </div>
                           </div>
                         )}
@@ -472,9 +544,14 @@ export default function MoodMatch() {
                   </div>
                 </section>
 
-                {/* Mood Buttons */}
+                {/* General Mood Browsing - clearly separated */}
                 <section className="px-4 space-y-4">
-                  <h3 className="font-semibold">Or pick your mood</h3>
+                  <div>
+                    <h3 className="font-semibold">Quick Mood Picks</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      General mood-based suggestions. For personalized recommendations, type how you're feeling above.
+                    </p>
+                  </div>
                   <div className="grid grid-cols-3 gap-3">
                     {moods.slice(0, 6).map((mood) => {
                       const Icon = mood.icon;
@@ -517,15 +594,14 @@ export default function MoodMatch() {
                 </section>
               </motion.div>
             ) : (
+              /* General Mood Results View */
               <motion.div
-                key="content-results"
+                key="general-mood-view"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-6"
-                id="recommendations"
               >
-                {/* Selected mood indicator */}
                 <section className="px-4">
                   <div className="glass-card p-4 flex items-center gap-3">
                     {currentMoodConfig && (
@@ -533,12 +609,10 @@ export default function MoodMatch() {
                         <currentMoodConfig.icon className={cn("h-6 w-6", currentMoodConfig.color)} />
                         <div>
                           <h3 className="font-semibold">
-                            Content for when you're {currentMoodConfig.label.toLowerCase()}
+                            Browse by Mood: {currentMoodConfig.label}
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            {currentPreferences
-                              ? `${currentPreferences.tone} • ${currentPreferences.content_type} • ${currentPreferences.popularity_preference}`
-                              : 'Curated picks to match your mood'}
+                            General library suggestions for this mood
                           </p>
                         </div>
                       </>
@@ -546,124 +620,28 @@ export default function MoodMatch() {
                   </div>
                 </section>
 
-                {/* Content Type Tabs */}
                 <section className="px-4">
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
                     <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="movies" className="gap-2">
-                        <Film className="h-4 w-4" />
-                        Movies
+                        <Film className="h-4 w-4" /> Movies
                       </TabsTrigger>
                       <TabsTrigger value="anime" className="gap-2">
-                        <Tv className="h-4 w-4" />
-                        Anime
+                        <Tv className="h-4 w-4" /> Anime
                       </TabsTrigger>
                       <TabsTrigger value="manga" className="gap-2">
-                        <BookOpen className="h-4 w-4" />
-                        Manga
+                        <BookOpen className="h-4 w-4" /> Manga
                       </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="movies" className="mt-4 space-y-8">
-                      {isLoading || isLoadingSmartRecs ? (
+                    <TabsContent value="movies" className="mt-4">
+                      {isLoadingMovies ? (
                         <div className="flex items-center justify-center py-12">
                           <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
                         </div>
-                      ) : hasSmartRecs ? (
-                        <>
-                          {/* Popular */}
-                          {smartRecommendations!.popular.length > 0 && (
-                            <div className="space-y-3">
-                              <h3 className="font-semibold flex items-center gap-2 text-sm">
-                                <Star className="h-4 w-4 text-primary" />
-                                Popular Movies
-                              </h3>
-                              <div className="grid grid-cols-3 gap-4">
-                                {smartRecommendations!.popular.map((movie, index) => (
-                                  <motion.div key={movie.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.03 }}>
-                                    <MovieCard movie={movie} size="sm" onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched} onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
-                                  </motion.div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Trending */}
-                          {smartRecommendations!.trending.length > 0 && (
-                            <div className="space-y-3">
-                              <h3 className="font-semibold flex items-center gap-2 text-sm">
-                                <TrendingUp className="h-4 w-4 text-primary" />
-                                Trending Now
-                              </h3>
-                              <div className="grid grid-cols-3 gap-4">
-                                {smartRecommendations!.trending.map((movie, index) => (
-                                  <motion.div key={movie.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.03 }}>
-                                    <MovieCard movie={movie} size="sm" onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched} onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
-                                  </motion.div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Underrated */}
-                          {smartRecommendations!.underrated.length > 0 && (
-                            <div className="space-y-3">
-                              <h3 className="font-semibold flex items-center gap-2 text-sm">
-                                <Eye className="h-4 w-4 text-primary" />
-                                Hidden Gems
-                              </h3>
-                              <div className="grid grid-cols-3 gap-4">
-                                {smartRecommendations!.underrated.map((movie, index) => (
-                                  <motion.div key={movie.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.03 }}>
-                                    <MovieCard movie={movie} size="sm" onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched} onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
-                                  </motion.div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* TV Series */}
-                          {smartRecommendations!.tvSeries.length > 0 && (
-                            <div className="space-y-3">
-                              <h3 className="font-semibold flex items-center gap-2 text-sm">
-                                <Tv className="h-4 w-4 text-primary" />
-                                Recommended TV Series
-                              </h3>
-                              <div className="grid grid-cols-3 gap-4">
-                                {smartRecommendations!.tvSeries.map((show, index) => (
-                                  <motion.div key={show.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.03 }}>
-                                    <div
-                                      className="cursor-pointer"
-                                      onClick={() => navigate(`/movie/${show.id}?type=tv`)}
-                                    >
-                                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted">
-                                        {show.poster_path ? (
-                                          <img
-                                            src={`https://image.tmdb.org/t/p/w300${show.poster_path}`}
-                                            alt={show.name}
-                                            className="w-full h-full object-cover"
-                                            loading="lazy"
-                                          />
-                                        ) : (
-                                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                            <Tv className="h-8 w-8" />
-                                          </div>
-                                        )}
-                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                                          <p className="text-white text-xs font-medium line-clamp-2">{show.name}</p>
-                                          <p className="text-white/70 text-[10px]">⭐ {show.vote_average.toFixed(1)}</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </motion.div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </>
                       ) : (
                         <div className="grid grid-cols-3 gap-4">
-                          {movieResults.map((movie, index) => (
+                          {(moodMovies?.results.slice(0, 12) || []).map((movie, index) => (
                             <motion.div key={movie.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.05 }}>
                               <MovieCard movie={movie} size="sm" onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched} onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
                             </motion.div>
