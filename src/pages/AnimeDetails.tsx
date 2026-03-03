@@ -1,12 +1,16 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Star, Play, BookOpen, Calendar, Tv, Plus, Check, Share2, Clock, Heart, Users, TrendingUp, Hash } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { CommentSection } from '@/components/comments/CommentSection';
+import { RatingModal } from '@/components/rating/RatingModal';
 import { getAniListDetails, type AniListDetailMedia } from '@/lib/anilist';
 import { useWatchlist, type WatchlistItem } from '@/hooks/useWatchlist';
+import { useFriends } from '@/hooks/useFriends';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 function formatDate(d: { year: number | null; month: number | null; day: number | null } | null): string {
@@ -38,7 +42,10 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AnimeDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToWatchlist, markAsWatched, isInWatchlist, isWatched } = useWatchlist();
+  const { addToWatchlist, markAsWatched, isInWatchlist, isWatched, getWatchedRating } = useWatchlist();
+  const { postActivity } = useFriends();
+  const { isAuthenticated } = useAuth();
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   const { data: anime, isLoading, error } = useQuery({
     queryKey: ['anilist-detail', id],
@@ -88,6 +95,7 @@ export default function AnimeDetails() {
   };
   const inWatchlist = isInWatchlist(animeItem.id);
   const watched = isWatched(animeItem.id);
+  const userRating = getWatchedRating(animeItem.id);
   const rating = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null;
   const trailerUrl = anime.trailer?.site === 'youtube' ? `https://www.youtube.com/embed/${anime.trailer.id}` : null;
   const animationStudios = anime.studios?.nodes?.filter(s => s.isAnimationStudio) || [];
@@ -112,8 +120,49 @@ export default function AnimeDetails() {
     }
   };
 
+  const handleMarkWatched = () => {
+    if (!isAuthenticated) {
+      toast('Sign In Required', {
+        description: 'Sign in to track what you\'ve watched.',
+        action: { label: 'Sign In', onClick: () => { window.location.href = '/auth'; } },
+      });
+      return;
+    }
+    setShowRatingModal(true);
+  };
+
+  const handleRatingSubmit = (r: number) => {
+    setShowRatingModal(false);
+    markAsWatched(animeItem, r);
+    postActivity('rated', title, animeItem.posterUrl, String(anime.id), 'anilist', 'anime', r);
+    toast.success(`Rated ${title} ${'⭐'.repeat(r)}`);
+  };
+
+  const handleRatingSkip = () => {
+    setShowRatingModal(false);
+    markAsWatched(animeItem);
+    postActivity('watched', title, animeItem.posterUrl, String(anime.id), 'anilist', 'anime');
+    toast.success(`Marked ${title} as watched`);
+  };
+
+  const handleAddToWatchlist = () => {
+    addToWatchlist(animeItem);
+    if (isAuthenticated && !inWatchlist) {
+      postActivity('watchlist_add', title, animeItem.posterUrl, String(anime.id), 'anilist', 'anime');
+    }
+  };
+
   return (
     <AppLayout hideNav>
+      <RatingModal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        onSubmit={handleRatingSubmit}
+        onSkip={handleRatingSkip}
+        title={title}
+        posterUrl={animeItem.posterUrl}
+      />
+
       <div className="pb-8">
         {/* Hero */}
         <header className="relative min-h-[55vh]">
@@ -181,17 +230,27 @@ export default function AnimeDetails() {
         {/* Action Buttons */}
         <section className="px-4 -mt-2 relative z-20">
           <div className="flex gap-3">
-            <Button variant={inWatchlist ? "secondary" : "outline"} className="flex-1 gap-2" onClick={() => addToWatchlist(animeItem)}>
+            <Button variant={inWatchlist ? "secondary" : "outline"} className="flex-1 gap-2" onClick={handleAddToWatchlist}>
               {inWatchlist ? (<><Check className="h-4 w-4" /> In Watchlist</>) : (<><Plus className="h-4 w-4" /> Add to Watchlist</>)}
             </Button>
-            <Button variant="glass" size="icon" onClick={() => markAsWatched(animeItem)}>
-              <Check className={`h-4 w-4 ${watched ? 'text-green-400' : ''}`} />
+            <Button variant={watched ? "secondary" : "glass"} className="gap-2" onClick={handleMarkWatched}>
+              {watched ? (<><Check className="h-4 w-4 text-green-400" /> Watched</>) : (<><Check className="h-4 w-4" /> Mark Watched</>)}
             </Button>
             <Button variant="glass" size="icon" onClick={handleShare}>
               <Share2 className="h-4 w-4" />
             </Button>
           </div>
         </section>
+
+        {/* User Rating */}
+        {userRating && (
+          <section className="px-4 mt-4">
+            <div className="glass-card p-3 flex items-center gap-2">
+              <span className="text-sm font-medium">Your Rating:</span>
+              <span className="text-accent">{'⭐'.repeat(userRating)}</span>
+            </div>
+          </section>
+        )}
 
         {/* Overview */}
         <section className="px-4 mt-6 space-y-3">

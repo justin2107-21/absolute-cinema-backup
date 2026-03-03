@@ -161,6 +161,33 @@ export type Database = {
           },
         ]
       }
+      friend_requests: {
+        Row: {
+          created_at: string
+          id: string
+          receiver_id: string
+          sender_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          receiver_id: string
+          sender_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          receiver_id?: string
+          sender_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -185,6 +212,45 @@ export type Database = {
           updated_at?: string
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      user_activities: {
+        Row: {
+          activity_type: string
+          content_id: string | null
+          content_poster: string | null
+          content_source: string | null
+          content_title: string
+          created_at: string
+          id: string
+          media_type: string | null
+          rating: number | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          content_id?: string | null
+          content_poster?: string | null
+          content_source?: string | null
+          content_title: string
+          created_at?: string
+          id?: string
+          media_type?: string | null
+          rating?: number | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          content_id?: string | null
+          content_poster?: string | null
+          content_source?: string | null
+          content_title?: string
+          created_at?: string
+          id?: string
+          media_type?: string | null
+          rating?: number | null
+          user_id?: string
         }
         Relationships: []
       }
