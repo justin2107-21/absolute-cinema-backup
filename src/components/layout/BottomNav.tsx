@@ -1,4 +1,4 @@
-import { Home, Search, Sparkles, Bookmark, User, Users } from 'lucide-react';
+import { Home, Search, Sparkles, Users, User } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -7,7 +7,7 @@ const navItems = [
   { icon: Home, label: 'Home', path: '/' },
   { icon: Search, label: 'Search', path: '/search' },
   { icon: Sparkles, label: 'MoodMatch', path: '/mood' },
-  { icon: Users, label: 'Party', path: '/party' },
+  { icon: Users, label: 'Friends', path: '/friends' },
   { icon: User, label: 'Profile', path: '/profile' },
 ];
 
@@ -19,16 +19,11 @@ export function BottomNav() {
       <div className="mx-auto max-w-lg">
         <div className="glass-card flex items-center justify-around px-2 py-3">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path || 
-              (item.path === '/party' && location.pathname.startsWith('/party'));
+            const isActive = location.pathname === item.path;
             const Icon = item.icon;
 
             return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className="relative flex flex-col items-center"
-              >
+              <NavLink key={item.path} to={item.path} className="relative flex flex-col items-center">
                 <motion.div
                   className={cn(
                     "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors duration-200",
@@ -47,10 +42,7 @@ export function BottomNav() {
                       />
                     )}
                   </div>
-                  <span className={cn(
-                    "text-[10px] font-medium",
-                    isActive && "text-primary"
-                  )}>
+                  <span className={cn("text-[10px] font-medium", isActive && "text-primary")}>
                     {item.label}
                   </span>
                 </motion.div>

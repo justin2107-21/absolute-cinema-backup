@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ArrowLeft, Globe, Palette, User, Shield, Bell, Accessibility, Users, Info,
+  ArrowLeft, Globe, Palette, User, Shield, Bell, Accessibility, Info,
   ChevronRight, Check, X
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -12,7 +12,7 @@ import { useMood, MoodType, moodThemes } from '@/contexts/MoodContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
-type SettingsSection = 'main' | 'language' | 'theme' | 'account' | 'privacy' | 'notifications' | 'accessibility' | 'watchparty' | 'about' | 'terms' | 'privacypolicy' | 'contact' | 'guidelines';
+type SettingsSection = 'main' | 'language' | 'theme' | 'account' | 'privacy' | 'notifications' | 'accessibility' | 'about' | 'terms' | 'privacypolicy' | 'contact' | 'guidelines';
 
 const moodOptions: { id: MoodType; label: string; emoji: string }[] = [
   { id: 'default', label: 'Default Purple', emoji: '💜' },
@@ -135,7 +135,6 @@ export default function Settings() {
     { id: 'privacy' as const, icon: Shield, label: t('settings.privacy'), desc: t('settings.privacyDesc') },
     { id: 'notifications' as const, icon: Bell, label: t('settings.notifications'), desc: t('settings.notificationsDesc') },
     { id: 'accessibility' as const, icon: Accessibility, label: t('settings.accessibility'), desc: t('settings.accessibilityDesc') },
-    { id: 'watchparty' as const, icon: Users, label: t('settings.watchParty'), desc: t('settings.watchPartyDesc') },
     { id: 'about' as const, icon: Info, label: t('settings.about'), desc: t('settings.aboutDesc') },
   ];
 
@@ -283,7 +282,7 @@ export default function Settings() {
             <div className="space-y-2">
               {[
                 { label: 'Friend Activity', desc: 'When friends watch movies' },
-                { label: 'Watch Party Invites', desc: 'When invited to parties' },
+                { label: 'Friend Requests', desc: 'When someone sends a request' },
                 { label: 'New Releases', desc: 'Movies matching your taste' },
                 { label: 'AI Recommendations', desc: 'Personalized suggestions' },
               ].map((item) => (
@@ -309,25 +308,6 @@ export default function Settings() {
                 <div key={item.label} className="p-4 glass-card flex items-center justify-between">
                   <div><p className="font-medium">{item.label}</p><p className="text-xs text-muted-foreground">{item.desc}</p></div>
                   <input type="checkbox" className="h-5 w-5 accent-primary" />
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'watchparty':
-        return (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-lg">{t('settings.watchParty')}</h3>
-            <div className="space-y-2">
-              {[
-                { label: 'Auto-join with Camera', desc: 'Camera on when joining', checked: true },
-                { label: 'Auto-join with Mic', desc: 'Microphone on when joining', checked: false },
-                { label: 'Show Reactions', desc: 'Display emoji reactions', checked: true },
-              ].map((item) => (
-                <div key={item.label} className="p-4 glass-card flex items-center justify-between">
-                  <div><p className="font-medium">{item.label}</p><p className="text-xs text-muted-foreground">{item.desc}</p></div>
-                  <input type="checkbox" defaultChecked={item.checked} className="h-5 w-5 accent-primary" />
                 </div>
               ))}
             </div>

@@ -23,7 +23,6 @@ import TVSeries from "@/pages/TVSeries";
 import Groups from "@/pages/Groups";
 import Friends from "@/pages/Friends";
 import Auth from "@/pages/Auth";
-import WatchParty from "@/pages/WatchParty";
 import AnimeDetails from "@/pages/AnimeDetails";
 import TopAnime from "@/pages/TopAnime";
 import NotFound from "@/pages/NotFound";
@@ -81,8 +80,6 @@ const App = () => {
                     <Route path="/groups" element={<Groups />} />
                     <Route path="/friends" element={<Friends />} />
                     <Route path="/auth" element={<Auth />} />
-                    <Route path="/party" element={<WatchParty />} />
-                    <Route path="/party/:roomId" element={<WatchParty />} />
                     <Route path="/top-anime" element={<TopAnime />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>

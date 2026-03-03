@@ -126,6 +126,11 @@ export function useWatchlist() {
     return watched.some(m => m.id === stringId);
   }, [watched]);
 
+  const getWatchedRating = useCallback((id: string | number): number | undefined => {
+    const stringId = typeof id === 'number' ? `tmdb-movie-${id}` : id;
+    return watched.find(m => m.id === stringId)?.rating;
+  }, [watched]);
+
   return {
     watchlist,
     watched,
@@ -135,5 +140,6 @@ export function useWatchlist() {
     removeFromWatched,
     isInWatchlist,
     isWatched,
+    getWatchedRating,
   };
 }

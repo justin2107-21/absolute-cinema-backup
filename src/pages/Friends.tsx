@@ -1,57 +1,67 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Users, Search, UserPlus, MessageCircle, ArrowLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Users, Search, UserPlus, UserCheck, UserX, Activity, Star, ArrowLeft, Bookmark, Eye, ChevronRight } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFriends, type FriendProfile } from '@/hooks/useFriends';
+import { formatDistanceToNow } from 'date-fns';
+
+type Tab = 'activity' | 'friends' | 'requests';
 
 export default function Friends() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const { friends, pendingRequests, activities, isLoading, sendFriendRequest, acceptRequest, declineRequest, searchUsers } = useFriends();
+  const [activeTab, setActiveTab] = useState<Tab>('activity');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<FriendProfile[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  return (
-    <AppLayout>
-      <div className="space-y-6 pt-4">
-        {/* Header */}
-        <header className="px-4 space-y-4">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => navigate('/profile')}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <motion.h1
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-2xl font-bold flex items-center gap-2"
-            >
-              <Users className="h-6 w-6 text-primary" />
-              Friends
+  const handleSearch = async (q: string) => {
+    setSearchQuery(q);
+    if (q.trim().length < 2) { setSearchResults([]); return; }
+    setIsSearching(true);
+    const results = await searchUsers(q);
+    setSearchResults(results);
+    setIsSearching(false);
+  };
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'watchlist_add': return <Bookmark className="h-4 w-4 text-primary" />;
+      case 'watched': return <Eye className="h-4 w-4 text-green-400" />;
+      case 'rated': return <Star className="h-4 w-4 fill-accent text-accent" />;
+      default: return <Activity className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const getActivityText = (type: string, title: string, rating?: number | null) => {
+    switch (type) {
+      case 'watchlist_add': return <>added <span className="font-medium text-foreground">{title}</span> to Watchlist</>;
+      case 'watched': return <>watched <span className="font-medium text-foreground">{title}</span></>;
+      case 'rated': return <>rated <span className="font-medium text-foreground">{title}</span> {'⭐'.repeat(rating || 0)}</>;
+      default: return <>{title}</>;
+    }
+  };
+
+  const getContentPath = (activity: typeof activities[0]) => {
+    if (activity.content_source === 'anilist') return `/anime/${activity.content_id}`;
+    if (activity.media_type === 'tv') return `/tv/${activity.content_id}`;
+    return `/movie/${activity.content_id}`;
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <AppLayout>
+        <div className="space-y-6 pt-4">
+          <header className="px-4">
+            <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold flex items-center gap-2">
+              <Users className="h-6 w-6 text-primary" /> Friends
             </motion.h1>
-          </div>
-
-          {/* Search - only show if authenticated */}
-          {isAuthenticated && (
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search by username..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12"
-              />
-            </div>
-          )}
-        </header>
-
-        {/* Show sign in prompt ONLY if not authenticated */}
-        {!isAuthenticated ? (
+          </header>
           <section className="px-4">
             <div className="glass-card p-8 text-center space-y-4">
               <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center mx-auto">
@@ -59,69 +69,202 @@ export default function Friends() {
               </div>
               <h3 className="text-lg font-semibold">Sign in to connect</h3>
               <p className="text-sm text-muted-foreground">
-                Sign in to add friends and share your movie journey
+                Sign in to add friends, see what they're watching, and share your movie journey.
               </p>
-              <Button onClick={() => navigate('/auth')}>
-                Sign In
-              </Button>
+              <Button onClick={() => navigate('/auth')}>Sign In</Button>
             </div>
           </section>
-        ) : (
-          <>
-            {/* Empty State for authenticated users */}
-            <section className="px-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center justify-center py-16 text-center"
-              >
-                <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center mb-4">
-                  <Users className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold">No friends yet</h3>
-                <p className="text-sm text-muted-foreground max-w-xs mt-2">
-                  Connect with friends to see what they're watching and plan movie nights together
-                </p>
-              </motion.div>
-            </section>
+        </div>
+      </AppLayout>
+    );
+  }
 
-            {/* Quick Actions */}
-            <section className="px-4 space-y-3">
-              <motion.button
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="glass-card w-full p-4 flex items-center gap-3 text-left"
-              >
-                <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                  <UserPlus className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Invite Friends</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Share a link to invite friends
-                  </p>
-                </div>
-              </motion.button>
+  return (
+    <AppLayout>
+      <div className="space-y-4 pt-4">
+        <header className="px-4">
+          <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold flex items-center gap-2">
+            <Users className="h-6 w-6 text-primary" /> Friends
+          </motion.h1>
+        </header>
 
-              <motion.button
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-                className="glass-card w-full p-4 flex items-center gap-3 text-left"
-              >
-                <div className="h-10 w-10 rounded-xl bg-accent/20 flex items-center justify-center">
-                  <MessageCircle className="h-5 w-5 text-accent" />
+        {/* Tabs */}
+        <div className="px-4 flex gap-2">
+          {[
+            { id: 'activity' as Tab, label: 'Activity', count: 0 },
+            { id: 'friends' as Tab, label: 'Friends', count: friends.length },
+            { id: 'requests' as Tab, label: 'Requests', count: pendingRequests.length },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-background/20 text-xs">{tab.count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <AnimatePresence mode="wait">
+          {/* Activity Feed */}
+          {activeTab === 'activity' && (
+            <motion.div key="activity" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="px-4 space-y-3 pb-8">
+              {activities.length === 0 ? (
+                <div className="text-center py-12">
+                  <Activity className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="font-medium">No activity yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">Activity from you and your friends will appear here</p>
                 </div>
-                <div>
-                  <h3 className="font-semibold">Activity Feed</h3>
-                  <p className="text-xs text-muted-foreground">
-                    See what friends are watching
-                  </p>
+              ) : (
+                activities.map((activity, i) => (
+                  <motion.div
+                    key={activity.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                    className="flex gap-3 p-3 rounded-xl bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
+                    onClick={() => activity.content_id && navigate(getContentPath(activity))}
+                  >
+                    {/* Avatar */}
+                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      {activity.avatar_url ? (
+                        <img src={activity.avatar_url} className="h-full w-full rounded-full object-cover" alt="" />
+                      ) : (
+                        activity.username?.charAt(0).toUpperCase() || '?'
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">
+                        <span className="font-semibold text-foreground">{activity.user_id === user?.id ? 'You' : activity.username}</span>{' '}
+                        {getActivityText(activity.activity_type, activity.content_title, activity.rating)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
+
+                    {/* Poster */}
+                    {activity.content_poster && (
+                      <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                        <img src={activity.content_poster} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </motion.div>
+                ))
+              )}
+            </motion.div>
+          )}
+
+          {/* Friends List */}
+          {activeTab === 'friends' && (
+            <motion.div key="friends" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="px-4 space-y-4 pb-8">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search users by username..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pl-12"
+                />
+              </div>
+
+              {/* Search Results */}
+              {searchQuery.trim().length >= 2 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">Search Results</p>
+                  {isSearching ? (
+                    <div className="text-center py-4 text-sm text-muted-foreground">Searching...</div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="text-center py-4 text-sm text-muted-foreground">No users found</div>
+                  ) : (
+                    searchResults.map(profile => (
+                      <div key={profile.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
+                        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">
+                          {profile.avatar_url ? (
+                            <img src={profile.avatar_url} className="h-full w-full rounded-full object-cover" alt="" />
+                          ) : (
+                            profile.username?.charAt(0).toUpperCase() || '?'
+                          )}
+                        </div>
+                        <span className="flex-1 font-medium text-sm">{profile.username || 'User'}</span>
+                        <Button size="sm" variant="outline" onClick={() => sendFriendRequest(profile.user_id)}>
+                          <UserPlus className="h-4 w-4 mr-1" /> Add
+                        </Button>
+                      </div>
+                    ))
+                  )}
                 </div>
-              </motion.button>
-            </section>
-          </>
-        )}
+              )}
+
+              {/* Friends List */}
+              {friends.length === 0 && !searchQuery ? (
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="font-medium">No friends yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">Search for users above to send friend requests</p>
+                </div>
+              ) : (
+                !searchQuery && friends.map(friend => (
+                  <div key={friend.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
+                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">
+                      {friend.avatar_url ? (
+                        <img src={friend.avatar_url} className="h-full w-full rounded-full object-cover" alt="" />
+                      ) : (
+                        friend.username?.charAt(0).toUpperCase() || '?'
+                      )}
+                    </div>
+                    <span className="flex-1 font-medium text-sm">{friend.username || 'User'}</span>
+                    <UserCheck className="h-5 w-5 text-green-400" />
+                  </div>
+                ))
+              )}
+            </motion.div>
+          )}
+
+          {/* Requests */}
+          {activeTab === 'requests' && (
+            <motion.div key="requests" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="px-4 space-y-3 pb-8">
+              {pendingRequests.length === 0 ? (
+                <div className="text-center py-12">
+                  <UserPlus className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="font-medium">No pending requests</p>
+                  <p className="text-sm text-muted-foreground mt-1">Friend requests you receive will appear here</p>
+                </div>
+              ) : (
+                pendingRequests.map(request => (
+                  <div key={request.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
+                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">
+                      {request.sender_profile?.username?.charAt(0).toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{request.sender_profile?.username || 'User'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => acceptRequest(request.id)}>
+                        <UserCheck className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => declineRequest(request.id)}>
+                        <UserX className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </AppLayout>
   );

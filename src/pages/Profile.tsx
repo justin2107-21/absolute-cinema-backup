@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Settings, LogOut, Bookmark, Check, Users, ChevronRight, Star, Film } from 'lucide-react';
+import { User, Settings, LogOut, Bookmark, Check, Users, ChevronRight, Film } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { SignInModal } from '@/components/auth/SignInModal';
