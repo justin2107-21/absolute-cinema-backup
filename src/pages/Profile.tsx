@@ -1,23 +1,102 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Settings, LogOut, Bookmark, Check, Users, ChevronRight, Film } from 'lucide-react';
+import { Settings, LogOut, Bookmark, Check, Users, ChevronRight, Film, Edit3, Camera } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SignInModal } from '@/components/auth/SignInModal';
 import { useWatchlist } from '@/hooks/useWatchlist';
+import { useFriends } from '@/hooks/useFriends';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function Profile() {
   const navigate = useNavigate();
   const { watchlist, watched } = useWatchlist();
   const { isAuthenticated, user, logout } = useAuth();
+  const { friends, activities } = useFriends();
   const [showSignInModal, setShowSignInModal] = useState(!isAuthenticated);
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileData, setProfileData] = useState<{ username: string; bio: string; avatar_url: string | null }>({
+    username: '', bio: '', avatar_url: null,
+  });
+  const [editData, setEditData] = useState({ username: '', bio: '' });
+
+  // Load profile data from DB
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('username, avatar_url, bio')
+        .eq('user_id', user.id)
+        .single();
+      if (data) {
+        setProfileData({
+          username: data.username || user.username,
+          bio: (data as any).bio || '',
+          avatar_url: data.avatar_url,
+        });
+        setEditData({
+          username: data.username || user.username,
+          bio: (data as any).bio || '',
+        });
+      }
+    };
+    load();
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ username: editData.username, bio: editData.bio } as any)
+      .eq('user_id', user.id);
+    if (error) { toast.error('Failed to update profile'); return; }
+    setProfileData(prev => ({ ...prev, username: editData.username, bio: editData.bio }));
+    setIsEditing(false);
+    toast.success('Profile updated!');
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+      toast.error('Only PNG and JPG images are allowed');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be under 2MB');
+      return;
+    }
+
+    // Convert to base64 data URL for simplicity (no storage bucket needed)
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: dataUrl })
+        .eq('user_id', user.id);
+      if (error) { toast.error('Failed to upload avatar'); return; }
+      setProfileData(prev => ({ ...prev, avatar_url: dataUrl }));
+      toast.success('Profile picture updated!');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const myActivities = activities.filter(a => a.user_id === user?.id).slice(0, 5);
 
   const stats = [
     { label: 'Watchlist', value: watchlist.length, icon: Bookmark },
     { label: 'Watched', value: watched.length, icon: Check },
-    { label: 'Friends', value: 0, icon: Users },
+    { label: 'Friends', value: friends.length, icon: Users },
   ];
 
   const menuItems = [
@@ -38,7 +117,7 @@ export default function Profile() {
   return (
     <AppLayout>
       <SignInModal isOpen={showSignInModal && !isAuthenticated} onClose={() => setShowSignInModal(false)} />
-      
+
       <div className="space-y-6 pt-4">
         <header className="px-4">
           <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold">
@@ -46,28 +125,79 @@ export default function Profile() {
           </motion.h1>
         </header>
 
+        {/* Profile Card */}
         <section className="px-4">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 text-center space-y-4">
-            <div className="relative inline-block">
-              <div className="h-24 w-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto">
-                <User className="h-12 w-12 text-white" />
-              </div>
-              {isAuthenticated && (
-                <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-cinema-green flex items-center justify-center border-4 border-background">
-                  <Check className="h-3 w-3 text-white" />
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card overflow-hidden">
+            {/* Cover gradient */}
+            <div className="h-20 bg-gradient-to-r from-primary/40 to-accent/30" />
+
+            <div className="px-4 pb-4 -mt-10">
+              <div className="flex items-end gap-3">
+                {/* Avatar */}
+                <div className="relative">
+                  <Avatar className="h-20 w-20 border-4 border-card shadow-xl">
+                    <AvatarImage src={profileData.avatar_url || undefined} />
+                    <AvatarFallback className="text-xl bg-primary/20">
+                      {(profileData.username || 'G').charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isAuthenticated && (
+                    <label className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary flex items-center justify-center cursor-pointer border-2 border-card">
+                      <Camera className="h-3.5 w-3.5 text-primary-foreground" />
+                      <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleAvatarUpload} />
+                    </label>
+                  )}
                 </div>
+
+                <div className="flex-1 min-w-0 pb-1">
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={editData.username}
+                        onChange={(e) => setEditData(prev => ({ ...prev, username: e.target.value }))}
+                        placeholder="Display name"
+                        className="h-8 text-sm"
+                      />
+                      <Textarea
+                        value={editData.bio}
+                        onChange={(e) => setEditData(prev => ({ ...prev, bio: e.target.value }))}
+                        placeholder="Tell us about yourself..."
+                        className="min-h-[50px] text-sm"
+                        maxLength={200}
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSaveProfile}>Save</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-bold truncate">
+                          {isAuthenticated ? profileData.username : 'Guest User'}
+                        </h2>
+                        {isAuthenticated && (
+                          <button onClick={() => setIsEditing(true)} className="text-muted-foreground hover:text-foreground">
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      {profileData.bio && (
+                        <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{profileData.bio}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {!isAuthenticated && (
+                <Button className="w-full mt-4" onClick={() => setShowSignInModal(true)}>Sign in for full features</Button>
               )}
             </div>
-            <div>
-              <h2 className="text-xl font-bold">{isAuthenticated ? user?.username : 'Guest User'}</h2>
-              <p className="text-sm text-muted-foreground">Movie enthusiast</p>
-            </div>
-            {!isAuthenticated && (
-              <Button onClick={() => setShowSignInModal(true)}>Sign in for full features</Button>
-            )}
           </motion.div>
         </section>
 
+        {/* Stats */}
         <section className="px-4">
           <div className="grid grid-cols-3 gap-3">
             {stats.map((stat, index) => {
@@ -84,6 +214,33 @@ export default function Profile() {
           </div>
         </section>
 
+        {/* Recent Activity */}
+        {isAuthenticated && myActivities.length > 0 && (
+          <section className="px-4 space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Recent Activity</h3>
+            <div className="space-y-2">
+              {myActivities.map(a => (
+                <div key={a.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-secondary/30">
+                  {a.content_poster && (
+                    <div className="w-8 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                      <img src={a.content_poster} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{a.content_title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {a.activity_type === 'rated' ? `Rated ${'⭐'.repeat(a.rating || 0)}` : a.activity_type === 'watched' ? 'Watched' : 'Added to watchlist'}
+                      {' · '}
+                      {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Menu Items */}
         <section className="px-4 space-y-2">
           {menuItems.map((item, index) => {
             const Icon = item.icon;

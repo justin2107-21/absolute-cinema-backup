@@ -10,6 +10,7 @@ import { SearchProvider } from "@/contexts/SearchContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { LoadingScreen } from "@/components/branding/LoadingScreen";
+import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import Install from "@/pages/Install";
 import Home from "@/pages/Home";
 import Search from "@/pages/Search";
@@ -22,6 +23,7 @@ import Movies from "@/pages/Movies";
 import TVSeries from "@/pages/TVSeries";
 import Groups from "@/pages/Groups";
 import Friends from "@/pages/Friends";
+import FriendProfile from "@/pages/FriendProfile";
 import Auth from "@/pages/Auth";
 import AnimeDetails from "@/pages/AnimeDetails";
 import TopAnime from "@/pages/TopAnime";
@@ -58,6 +60,7 @@ const App = () => {
             <SearchProvider>
               <BrowserRouter>
                 <TooltipProvider>
+                  <ScrollToTop />
                   <Toaster />
                   <Sonner position="top-center" />
                   
@@ -79,6 +82,7 @@ const App = () => {
                     <Route path="/anime/:id" element={<AnimeDetails />} />
                     <Route path="/groups" element={<Groups />} />
                     <Route path="/friends" element={<Friends />} />
+                    <Route path="/user/:userId" element={<FriendProfile />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/top-anime" element={<TopAnime />} />
                     <Route path="*" element={<NotFound />} />

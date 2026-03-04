@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocked_users: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       chat_conversations: {
         Row: {
           created_at: string
@@ -84,18 +105,21 @@ export type Database = {
           comment_id: string
           created_at: string
           id: string
+          reaction_type: string | null
           user_id: string
         }
         Insert: {
           comment_id: string
           created_at?: string
           id?: string
+          reaction_type?: string | null
           user_id: string
         }
         Update: {
           comment_id?: string
           created_at?: string
           id?: string
+          reaction_type?: string | null
           user_id?: string
         }
         Relationships: [
@@ -117,6 +141,7 @@ export type Database = {
           created_at: string
           episode_number: number | null
           id: string
+          is_edited: boolean | null
           likes_count: number | null
           parent_id: string | null
           season_number: number | null
@@ -131,6 +156,7 @@ export type Database = {
           created_at?: string
           episode_number?: number | null
           id?: string
+          is_edited?: boolean | null
           likes_count?: number | null
           parent_id?: string | null
           season_number?: number | null
@@ -145,6 +171,7 @@ export type Database = {
           created_at?: string
           episode_number?: number | null
           id?: string
+          is_edited?: boolean | null
           likes_count?: number | null
           parent_id?: string | null
           season_number?: number | null
@@ -157,6 +184,65 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dm_conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_message_at: string | null
+          participant1_id: string
+          participant2_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          participant1_id: string
+          participant2_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          participant1_id?: string
+          participant2_id?: string
+        }
+        Relationships: []
+      }
+      dm_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "dm_conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -191,6 +277,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
           id: string
           updated_at: string
@@ -199,6 +286,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           id?: string
           updated_at?: string
@@ -207,6 +295,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           id?: string
           updated_at?: string
@@ -251,6 +340,36 @@ export type Database = {
           media_type?: string | null
           rating?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_reports: {
+        Row: {
+          created_at: string | null
+          details: string | null
+          id: string
+          reason: string
+          reported_id: string
+          reporter_id: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: string | null
+          id?: string
+          reason: string
+          reported_id: string
+          reporter_id: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: string | null
+          id?: string
+          reason?: string
+          reported_id?: string
+          reporter_id?: string
+          status?: string | null
         }
         Relationships: []
       }

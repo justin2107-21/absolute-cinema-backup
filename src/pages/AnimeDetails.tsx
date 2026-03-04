@@ -228,16 +228,16 @@ export default function AnimeDetails() {
         </header>
 
         {/* Action Buttons */}
-        <section className="px-4 -mt-2 relative z-20">
-          <div className="flex gap-3">
-            <Button variant={inWatchlist ? "secondary" : "outline"} className="flex-1 gap-2" onClick={handleAddToWatchlist}>
-              {inWatchlist ? (<><Check className="h-4 w-4" /> In Watchlist</>) : (<><Plus className="h-4 w-4" /> Add to Watchlist</>)}
+        <section className="px-4 mt-4 relative z-20">
+          <div className="flex gap-3 items-stretch">
+            <Button variant={inWatchlist ? "secondary" : "outline"} className="flex-1 gap-2 h-12" onClick={handleAddToWatchlist}>
+              {inWatchlist ? (<><Check className="h-4 w-4" /> In Watchlist</>) : (<><Plus className="h-4 w-4" /> Watchlist</>)}
             </Button>
-            <Button variant={watched ? "secondary" : "glass"} className="gap-2" onClick={handleMarkWatched}>
-              {watched ? (<><Check className="h-4 w-4 text-green-400" /> Watched</>) : (<><Check className="h-4 w-4" /> Mark Watched</>)}
+            <Button variant={watched ? "secondary" : "glass"} className="flex-1 gap-2 h-12" onClick={handleMarkWatched}>
+              {watched ? (<><Check className="h-4 w-4 text-green-400" /> Watched</>) : (<><Check className="h-4 w-4" /> Watched</>)}
             </Button>
-            <Button variant="glass" size="icon" onClick={handleShare}>
-              <Share2 className="h-4 w-4" />
+            <Button variant="glass" className="h-12 w-12 flex-shrink-0" onClick={handleShare}>
+              <Share2 className="h-5 w-5" />
             </Button>
           </div>
         </section>
