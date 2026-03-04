@@ -1,24 +1,37 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Search, UserPlus, UserCheck, UserX, Activity, Star, ArrowLeft, Bookmark, Eye, ChevronRight } from 'lucide-react';
+import { Users, Search, UserPlus, UserCheck, UserX, Activity, Star, Bookmark, Eye, MessageCircle } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useNavigate } from 'react-router-dom';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ChatWindow } from '@/components/chat/ChatWindow';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFriends, type FriendProfile } from '@/hooks/useFriends';
+import { useChat } from '@/hooks/useChat';
 import { formatDistanceToNow } from 'date-fns';
 
-type Tab = 'activity' | 'friends' | 'requests';
+type Tab = 'activity' | 'friends' | 'requests' | 'messages';
 
 export default function Friends() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated, user } = useAuth();
-  const { friends, pendingRequests, activities, isLoading, sendFriendRequest, acceptRequest, declineRequest, searchUsers } = useFriends();
-  const [activeTab, setActiveTab] = useState<Tab>('activity');
+  const { friends, pendingRequests, activities, sendFriendRequest, acceptRequest, declineRequest, searchUsers } = useFriends();
+  const { conversations, getOrCreateConversation, totalUnread } = useChat();
+  const [activeTab, setActiveTab] = useState<Tab>(searchParams.get('chat') ? 'messages' : 'activity');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FriendProfile[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [activeChat, setActiveChat] = useState<{ id: string; user: { user_id: string; username: string | null; avatar_url: string | null } } | null>(() => {
+    const chatId = searchParams.get('chat');
+    const userId = searchParams.get('user');
+    if (chatId && userId) {
+      return { id: chatId, user: { user_id: userId, username: null, avatar_url: null } };
+    }
+    return null;
+  });
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
@@ -27,6 +40,14 @@ export default function Friends() {
     const results = await searchUsers(q);
     setSearchResults(results);
     setIsSearching(false);
+  };
+
+  const openChat = async (friend: FriendProfile) => {
+    const convoId = await getOrCreateConversation(friend.user_id);
+    if (convoId) {
+      setActiveChat({ id: convoId, user: { user_id: friend.user_id, username: friend.username, avatar_url: friend.avatar_url } });
+      setActiveTab('messages');
+    }
   };
 
   const getActivityIcon = (type: string) => {
@@ -79,6 +100,21 @@ export default function Friends() {
     );
   }
 
+  // Active chat view
+  if (activeChat) {
+    return (
+      <AppLayout>
+        <div className="pt-4 px-4">
+          <ChatWindow
+            conversationId={activeChat.id}
+            otherUser={activeChat.user}
+            onBack={() => setActiveChat(null)}
+          />
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="space-y-4 pt-4">
@@ -89,22 +125,25 @@ export default function Friends() {
         </header>
 
         {/* Tabs */}
-        <div className="px-4 flex gap-2">
+        <div className="px-4 flex gap-2 overflow-x-auto scrollbar-hide">
           {[
             { id: 'activity' as Tab, label: 'Activity', count: 0 },
             { id: 'friends' as Tab, label: 'Friends', count: friends.length },
+            { id: 'messages' as Tab, label: 'Chat', count: totalUnread },
             { id: 'requests' as Tab, label: 'Requests', count: pendingRequests.length },
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'
               }`}
             >
               {tab.label}
               {tab.count > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-background/20 text-xs">{tab.count}</span>
+                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
+                  tab.id === 'messages' && activeTab !== 'messages' ? 'bg-destructive text-destructive-foreground' : 'bg-background/20'
+                }`}>{tab.count}</span>
               )}
             </button>
           ))}
@@ -130,16 +169,10 @@ export default function Friends() {
                     className="flex gap-3 p-3 rounded-xl bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
                     onClick={() => activity.content_id && navigate(getContentPath(activity))}
                   >
-                    {/* Avatar */}
-                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold flex-shrink-0">
-                      {activity.avatar_url ? (
-                        <img src={activity.avatar_url} className="h-full w-full rounded-full object-cover" alt="" />
-                      ) : (
-                        activity.username?.charAt(0).toUpperCase() || '?'
-                      )}
-                    </div>
-
-                    {/* Content */}
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      <AvatarImage src={activity.avatar_url || undefined} />
+                      <AvatarFallback>{activity.username?.charAt(0).toUpperCase() || '?'}</AvatarFallback>
+                    </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm">
                         <span className="font-semibold text-foreground">{activity.user_id === user?.id ? 'You' : activity.username}</span>{' '}
@@ -149,8 +182,6 @@ export default function Friends() {
                         {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
                       </p>
                     </div>
-
-                    {/* Poster */}
                     {activity.content_poster && (
                       <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
                         <img src={activity.content_poster} alt="" className="w-full h-full object-cover" />
@@ -165,19 +196,12 @@ export default function Friends() {
           {/* Friends List */}
           {activeTab === 'friends' && (
             <motion.div key="friends" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="px-4 space-y-4 pb-8">
-              {/* Search */}
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search users by username..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-12"
-                />
+                <Input type="text" placeholder="Search users by username..." value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)} className="pl-12" />
               </div>
 
-              {/* Search Results */}
               {searchQuery.trim().length >= 2 && (
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground font-medium">Search Results</p>
@@ -188,13 +212,10 @@ export default function Friends() {
                   ) : (
                     searchResults.map(profile => (
                       <div key={profile.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
-                        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">
-                          {profile.avatar_url ? (
-                            <img src={profile.avatar_url} className="h-full w-full rounded-full object-cover" alt="" />
-                          ) : (
-                            profile.username?.charAt(0).toUpperCase() || '?'
-                          )}
-                        </div>
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={profile.avatar_url || undefined} />
+                          <AvatarFallback>{profile.username?.charAt(0).toUpperCase() || '?'}</AvatarFallback>
+                        </Avatar>
                         <span className="flex-1 font-medium text-sm">{profile.username || 'User'}</span>
                         <Button size="sm" variant="outline" onClick={() => sendFriendRequest(profile.user_id)}>
                           <UserPlus className="h-4 w-4 mr-1" /> Add
@@ -205,7 +226,6 @@ export default function Friends() {
                 </div>
               )}
 
-              {/* Friends List */}
               {friends.length === 0 && !searchQuery ? (
                 <div className="text-center py-12">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
@@ -215,16 +235,60 @@ export default function Friends() {
               ) : (
                 !searchQuery && friends.map(friend => (
                   <div key={friend.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
-                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">
-                      {friend.avatar_url ? (
-                        <img src={friend.avatar_url} className="h-full w-full rounded-full object-cover" alt="" />
-                      ) : (
-                        friend.username?.charAt(0).toUpperCase() || '?'
+                    <button onClick={() => navigate(`/user/${friend.user_id}`)} className="flex items-center gap-3 flex-1 min-w-0">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={friend.avatar_url || undefined} />
+                        <AvatarFallback>{friend.username?.charAt(0).toUpperCase() || '?'}</AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium text-sm truncate">{friend.username || 'User'}</span>
+                    </button>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Button size="sm" variant="ghost" onClick={() => openChat(friend)}>
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                      <UserCheck className="h-5 w-5 text-green-400" />
+                    </div>
+                  </div>
+                ))
+              )}
+            </motion.div>
+          )}
+
+          {/* Messages */}
+          {activeTab === 'messages' && (
+            <motion.div key="messages" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="px-4 space-y-3 pb-8">
+              {conversations.length === 0 ? (
+                <div className="text-center py-12">
+                  <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="font-medium">No conversations yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">Start chatting with a friend from the Friends tab</p>
+                </div>
+              ) : (
+                conversations.map(convo => (
+                  <button
+                    key={convo.id}
+                    onClick={() => setActiveChat({ id: convo.id, user: convo.other_user || { user_id: '', username: null, avatar_url: null } })}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors text-left"
+                  >
+                    <div className="relative">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={convo.other_user?.avatar_url || undefined} />
+                        <AvatarFallback>{convo.other_user?.username?.charAt(0).toUpperCase() || '?'}</AvatarFallback>
+                      </Avatar>
+                      {(convo.unread_count || 0) > 0 && (
+                        <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive flex items-center justify-center">
+                          <span className="text-[10px] font-bold text-destructive-foreground">{convo.unread_count}</span>
+                        </div>
                       )}
                     </div>
-                    <span className="flex-1 font-medium text-sm">{friend.username || 'User'}</span>
-                    <UserCheck className="h-5 w-5 text-green-400" />
-                  </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">{convo.other_user?.username || 'User'}</p>
+                      <p className="text-xs text-muted-foreground truncate">{convo.last_message || 'No messages yet'}</p>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                      {formatDistanceToNow(new Date(convo.last_message_at), { addSuffix: true })}
+                    </span>
+                  </button>
                 ))
               )}
             </motion.div>
@@ -242,9 +306,10 @@ export default function Friends() {
               ) : (
                 pendingRequests.map(request => (
                   <div key={request.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
-                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">
-                      {request.sender_profile?.username?.charAt(0).toUpperCase() || '?'}
-                    </div>
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={request.sender_profile?.avatar_url || undefined} />
+                      <AvatarFallback>{request.sender_profile?.username?.charAt(0).toUpperCase() || '?'}</AvatarFallback>
+                    </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm">{request.sender_profile?.username || 'User'}</p>
                       <p className="text-xs text-muted-foreground">

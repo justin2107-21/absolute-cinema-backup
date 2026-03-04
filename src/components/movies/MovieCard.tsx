@@ -39,9 +39,9 @@ export function MovieCard({
   );
 
   const sizeClasses = {
-    sm: 'w-28 h-40',
-    md: 'w-36 h-52',
-    lg: 'w-44 h-64',
+    sm: 'w-32 h-48',
+    md: 'w-40 h-60',
+    lg: 'w-48 h-72',
   };
 
   const releaseYear = movie.release_date?.split('-')[0];
