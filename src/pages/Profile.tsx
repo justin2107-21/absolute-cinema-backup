@@ -42,15 +42,21 @@ export default function Profile() {
     const load = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('username, avatar_url, bio, banner_url')
+        .select('username, avatar_url, bio')
         .eq('user_id', user.id)
         .single();
       if (data) {
+        // Fetch banner_url separately since it may not be in types yet
+        const { data: fullProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
         setProfileData({
           username: data.username || user.username,
           bio: data.bio || '',
           avatar_url: data.avatar_url,
-          banner_url: (data as any).banner_url || null,
+          banner_url: (fullProfile as any)?.banner_url || null,
         });
         setEditData({
           username: data.username || user.username,
