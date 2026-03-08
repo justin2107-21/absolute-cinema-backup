@@ -11,7 +11,7 @@ import { UnifiedCard } from '@/components/content/UnifiedCard';
 
 import { getDiversifiedHomeContent } from '@/lib/tmdb';
 import { getTrendingAnime, getUpcomingNextSeasonAnime, getAllTimePopularAnime, getTop100Anime } from '@/lib/anilist';
-import { anilistToUnified, getContentPath, getScoreEmoji, formatAnimeFormat, formatSeason } from '@/lib/unified-content';
+import { anilistToUnified, getContentPath } from '@/lib/unified-content';
 import { getPersonalizedRecommendations, getDiverseDiscovery } from '@/lib/recommendations';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useNavigate } from 'react-router-dom';
@@ -154,7 +154,7 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* Movie Rows */}
+        {/* Movie Rows - grouped by section */}
         {isLoading ? (
           <>
             <MovieRowSkeleton />
@@ -163,40 +163,101 @@ export default function Home() {
           </>
         ) : (
           <>
-            <MovieRow title="Trending Now" subtitle="What everyone's watching today" icon={<TrendingUp className="h-5 w-5" />}>
-              {homeContent?.trending.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
-                  onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
-              ))}
-            </MovieRow>
-
-            {/* Trending Anime */}
-            {trendingAnimeUnified.length > 0 && (
-              <MovieRow title="Trending Anime" subtitle="Popular anime right now" icon={<Sparkles className="h-5 w-5" />}>
-                {trendingAnimeUnified.map((content) => (
-                  <UnifiedCard key={content.id} content={content} size="sm" onClick={() => navigate(getContentPath(content))} />
+            {/* ——— Trending Section ——— */}
+            <section className="space-y-4" aria-label="Trending">
+              <div className="px-4">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Trending</h2>
+              </div>
+              <MovieRow title="Trending Now" subtitle="What everyone's watching today" icon={<TrendingUp className="h-5 w-5" />}>
+                {homeContent?.trending.map((movie) => (
+                  <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
+                    onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
                 ))}
               </MovieRow>
-            )}
+              {trendingAnimeUnified.length > 0 && (
+                <MovieRow title="Trending Anime" subtitle="Popular anime right now" icon={<Sparkles className="h-5 w-5" />}>
+                  {trendingAnimeUnified.map((content) => (
+                    <UnifiedCard key={content.id} content={content} size="sm" onClick={() => navigate(getContentPath(content))} />
+                  ))}
+                </MovieRow>
+              )}
+            </section>
 
-            {/* Upcoming Next Season Anime */}
-            {upcomingAnimeUnified.length > 0 && (
-              <MovieRow title="Upcoming Next Season" subtitle="Anime airing next season" icon={<Clock className="h-5 w-5" />}>
-                {upcomingAnimeUnified.map((content) => (
-                  <UnifiedCard key={content.id} content={content} size="sm" onClick={() => navigate(getContentPath(content))} hideRating />
+            {/* ——— Movies & Shows Section ——— */}
+            <section className="space-y-4" aria-label="Movies & Shows">
+              <div className="px-4">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Movies & Shows</h2>
+              </div>
+              <MovieRow title="In Theaters" subtitle="Now showing" icon={<Play className="h-5 w-5" />}>
+                {homeContent?.nowPlaying.map((movie) => (
+                  <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
+                    onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
                 ))}
               </MovieRow>
-            )}
-
-            {/* All-Time Popular Anime */}
-            {allTimePopularUnified.length > 0 && (
-              <MovieRow title="All-Time Popular Anime" subtitle="The most popular anime ever" icon={<Crown className="h-5 w-5" />}>
-                {allTimePopularUnified.map((content) => (
-                  <UnifiedCard key={content.id} content={content} size="sm" onClick={() => navigate(getContentPath(content))} />
+              <MovieRow title="Coming Soon" subtitle="Mark your calendar" icon={<Calendar className="h-5 w-5" />}>
+                {homeContent?.upcoming.map((movie) => (
+                  <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
+                    onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
                 ))}
               </MovieRow>
-            )}
+              <MovieRow title="Top Rated" subtitle="Critically acclaimed" icon={<Star className="h-5 w-5" />}>
+                {homeContent?.topRated.map((movie) => (
+                  <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
+                    onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
+                ))}
+              </MovieRow>
+              <MovieRow title="Popular This Week" subtitle="Fan favorites" icon={<Star className="h-5 w-5" />}>
+                {homeContent?.popular.map((movie) => (
+                  <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
+                    onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
+                ))}
+              </MovieRow>
+            </section>
 
+            {/* ——— Anime Section ——— */}
+            <section className="space-y-4" aria-label="Anime">
+              <div className="px-4">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Anime</h2>
+              </div>
+              {upcomingAnimeUnified.length > 0 && (
+                <MovieRow title="Upcoming Next Season" subtitle="Anime airing next season" icon={<Clock className="h-5 w-5" />}>
+                  {upcomingAnimeUnified.map((content) => (
+                    <UnifiedCard key={content.id} content={content} size="sm" onClick={() => navigate(getContentPath(content))} hideRating />
+                  ))}
+                </MovieRow>
+              )}
+              {allTimePopularUnified.length > 0 && (
+                <MovieRow title="All-Time Popular Anime" subtitle="The most popular anime ever" icon={<Crown className="h-5 w-5" />}>
+                  {allTimePopularUnified.map((content) => (
+                    <UnifiedCard key={content.id} content={content} size="sm" onClick={() => navigate(getContentPath(content))} />
+                  ))}
+                </MovieRow>
+              )}
+              {top100AnimeUnified.length > 0 && (
+                <MovieRow
+                  title="Top 100 Anime"
+                  subtitle="Highest rated of all time"
+                  icon={<Trophy className="h-5 w-5" />}
+                  rightAction={
+                    <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => navigate('/top-anime')}>
+                      View All Top 100 Anime <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  }
+                >
+                  {top100AnimeUnified.map((content, index) => (
+                    <UnifiedCard
+                      key={content.id}
+                      content={content}
+                      size="sm"
+                      rank={index + 1}
+                      onClick={() => navigate(getContentPath(content))}
+                    />
+                  ))}
+                </MovieRow>
+              )}
+            </section>
+
+            {/* ——— Personalized / Discovery (existing functionality) ——— */}
             {personalRecs?.forYou && personalRecs.forYou.length > 0 && (
               <MovieRow title="For You" subtitle="Based on your watch history" icon={<Sparkles className="h-5 w-5" />}>
                 {personalRecs.forYou.map((movie) => (
@@ -231,86 +292,6 @@ export default function Home() {
                     onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
                 ))}
               </MovieRow>
-            )}
-
-            <MovieRow title="Popular This Week" subtitle="Fan favorites" icon={<Star className="h-5 w-5" />}>
-              {homeContent?.popular.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
-                  onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
-              ))}
-            </MovieRow>
-
-            <MovieRow title="Top Rated" subtitle="Critically acclaimed" icon={<Star className="h-5 w-5" />}>
-              {homeContent?.topRated.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
-                  onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
-              ))}
-            </MovieRow>
-
-            <MovieRow title="In Theaters" subtitle="Now showing" icon={<Play className="h-5 w-5" />}>
-              {homeContent?.nowPlaying.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
-                  onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
-              ))}
-            </MovieRow>
-
-            <MovieRow title="Coming Soon" subtitle="Mark your calendar" icon={<Calendar className="h-5 w-5" />}>
-              {homeContent?.upcoming.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onAddToWatchlist={addToWatchlist} onMarkWatched={markAsWatched}
-                  onClick={() => navigate(`/movie/${movie.id}`)} isInWatchlist={isInWatchlist(movie.id)} isWatched={isWatched(movie.id)} />
-              ))}
-            </MovieRow>
-
-            {/* Top 100 Anime - Ranked List Preview */}
-            {top100AnimeUnified.length > 0 && (
-              <section className="px-4 space-y-3 mt-2">
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-primary" />
-                  <div>
-                    <h2 className="font-semibold">Top 100 Anime</h2>
-                    <p className="text-xs text-muted-foreground">Highest rated of all time</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {top100AnimeUnified.slice(0, 10).map((content, index) => {
-                    const scorePercent = content.rating ? Math.round(content.rating * 10) : null;
-                    const emoji = getScoreEmoji(scorePercent);
-                    const format = formatAnimeFormat(content.format);
-                    const season = content.season && content.seasonYear
-                      ? `${formatSeason(content.season)} ${content.seasonYear}`
-                      : content.seasonYear?.toString() || '';
-
-                    return (
-                      <motion.div
-                        key={content.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.03 }}
-                        onClick={() => navigate(getContentPath(content))}
-                        className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
-                      >
-                        <span className="text-sm font-bold text-primary w-7 text-right shrink-0">#{index + 1}</span>
-                        <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-                          {content.poster && <img src={content.poster} alt={content.title} className="w-full h-full object-cover" loading="lazy" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{content.title}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {scorePercent && <span className="font-semibold text-foreground">{scorePercent}%</span>}
-                            <span>{emoji}</span>
-                            <span>•</span>
-                            <span>{format}</span>
-                            {season && <><span>•</span><span>{season}</span></>}
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-                <Button variant="outline" className="w-full gap-2" onClick={() => navigate('/top-anime')}>
-                  View All Top 100 Anime <ChevronRight className="h-4 w-4" />
-                </Button>
-              </section>
             )}
           </>
         )}

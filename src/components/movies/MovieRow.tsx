@@ -8,9 +8,11 @@ interface MovieRowProps {
   subtitle?: string;
   icon?: ReactNode;
   children: ReactNode;
+  /** Optional right-side content (e.g. "View All" link), aligned with title */
+  rightAction?: ReactNode;
 }
 
-export function MovieRow({ title, subtitle, icon, children }: MovieRowProps) {
+export function MovieRow({ title, subtitle, icon, children, rightAction }: MovieRowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -40,7 +42,9 @@ export function MovieRow({ title, subtitle, icon, children }: MovieRowProps) {
           </div>
         </div>
         
-        <div className="hidden sm:flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {rightAction}
+          <div className="hidden sm:flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
@@ -57,6 +61,7 @@ export function MovieRow({ title, subtitle, icon, children }: MovieRowProps) {
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
+        </div>
         </div>
       </div>
 

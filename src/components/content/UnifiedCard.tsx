@@ -12,9 +12,11 @@ interface UnifiedCardProps {
   showTypeBadge?: boolean;
   /** When true, rating badge and rating in hover card are hidden (e.g. for unreleased/upcoming content) */
   hideRating?: boolean;
+  /** When set, shows a rank number badge at top-left (e.g. for Top 100 lists) */
+  rank?: number;
 }
 
-export function UnifiedCard({ content, onClick, size = 'md', showTypeBadge = false, hideRating = false }: UnifiedCardProps) {
+export function UnifiedCard({ content, onClick, size = 'md', showTypeBadge = false, hideRating = false, rank }: UnifiedCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   const sizeClasses = {
@@ -49,6 +51,13 @@ export function UnifiedCard({ content, onClick, size = 'md', showTypeBadge = fal
             <span className="text-xs text-muted-foreground text-center p-2">
               {content.title}
             </span>
+          </div>
+        )}
+
+        {/* Rank badge - top left (e.g. Top 100) */}
+        {rank != null && (
+          <div className="absolute top-2 left-2 flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold shadow-md">
+            {rank}
           </div>
         )}
 
